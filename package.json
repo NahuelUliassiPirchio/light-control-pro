@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "dev": "electron --enable-logging .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Nahuel Uliassi Pirchio <uliassipirchio@gmail.com>",
