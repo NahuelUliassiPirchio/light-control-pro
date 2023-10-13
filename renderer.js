@@ -1,13 +1,15 @@
-const $ = selector => document.querySelector(selector)
+const $ = (selector) => document.querySelector(selector)
+
 const $toggleBulbButton = $('.toggle-bulb-button')
 const $responseHeader = document.querySelector('.response')
 const $reloadButton = $('.reload-bulbs-button')
+
+const $modeSelector = document.getElementById('mode-selector')
 const $colorPicker = document.getElementById('color-picker')
 const $tempPicker = document.getElementById('temp-picker')
-const $modeSelector = document.getElementById('mode-selector')
 const $dimmingRange = document.getElementById('dimming-range')
 
-$tempPicker.disabled = true
+if ($tempPicker) $tempPicker.disabled = true
 
 $dimmingRange.addEventListener('change', async (event) => {
   if (!$colorPicker.disabled) await window.bulbNetworking.changeColor(hexaToRGB($colorPicker.value), event.target.value)

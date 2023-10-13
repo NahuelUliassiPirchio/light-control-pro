@@ -1,5 +1,5 @@
+'use strict'
 const { contextBridge, ipcRenderer } = require('electron')
-
 contextBridge.exposeInMainWorld('bulbNetworking', {
   setBulb: (state) => ipcRenderer.invoke('setBulb', state),
   changeColor: (color, dimming) => ipcRenderer.invoke('changeColor', color, dimming),
