@@ -3,8 +3,23 @@ const { BrowserWindow, app, ipcMain } = require('electron')
 const { exec } = require('child_process')
 const path = require('path')
 
+const ips = ['192.168.0.3', '192.168.0.9']
+
+async function handleChangeColor (event, { r, g, b }, dimming) {
+  return execFunction(`echo -n '{"id":1,"method":"setPilot","params":{"r":${r},"g":${g},"b":${b},"dimming": ${dimming}}}' | nc -u -w 1 ${ips[0]} 38899`)
+}
+
+async function handleSetTemp (event, temp, dimming) {
+  return execFunction(`echo -n '{"id":1,"method":"setPilot","params":{"temp":${temp},"dimming": ${dimming}}}' | nc -u -w 1 ${ips[0]} 38899`)
+}
+
 async function handleSetBulb (event, state) {
-  return execFunction(`echo -n '{"id":1,"method":"setState","params":{"state":${state}}}' | nc -u -w 1 192.168.0.3 38899`)
+  return execFunction(`echo -n '{"id":1,"method":"setState","params":{"state":${state}}}' | nc -u -w 1 ${ips[0]} 38899`)
+}
+
+async function handleGetBulbs (event) {
+  const bulb = await execFunction(`echo -n '{"method":"getPilot","params":{}}' | nc -u -w 1 ${ips[0]} 38899`)
+  return bulb
 }
 
 const createWindow = () => {
@@ -21,6 +36,9 @@ const createWindow = () => {
 
 app.whenReady().then(() => {
   ipcMain.handle('setBulb', handleSetBulb)
+  ipcMain.handle('getBulbs', handleGetBulbs)
+  ipcMain.handle('changeColor', handleChangeColor)
+  ipcMain.handle('setTemp', handleSetTemp)
   createWindow()
 
   app.on('activate', () => {
