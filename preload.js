@@ -1,8 +1,8 @@
-'use strict'
-const { contextBridge, ipcRenderer } = require('electron')
+"use strict";
+const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('bulbNetworking', {
-  setBulb: (state) => ipcRenderer.invoke('setBulb', state),
-  changeColor: (color, dimming) => ipcRenderer.invoke('changeColor', color, dimming),
-  setTemp: (temp, dimming) => ipcRenderer.invoke('setTemp', temp, dimming),
-  getBulbs: () => ipcRenderer.invoke('getBulbs')
-})
+    setBulb: (ip, state) => ipcRenderer.invoke('setBulb', ip, state),
+    changeColor: (ip, color, dimming) => ipcRenderer.invoke('changeColor', ip, color, dimming),
+    setTemp: (ip, temp, dimming) => ipcRenderer.invoke('setTemp', ip, temp, dimming),
+    getBulbs: () => ipcRenderer.invoke('getBulbs')
+});

@@ -5,21 +5,22 @@ const path = require('path')
 
 const ips = ['192.168.0.3', '192.168.0.9']
 
-async function handleChangeColor (event: typeof IpcMainEvent, { r, g, b }:RGBColor, dimming:number) {
-  return execFunction(`echo -n '{"id":1,"method":"setPilot","params":{"r":${r},"g":${g},"b":${b},"dimming": ${dimming}}}' | nc -u -w 1 ${ips[0]} 38899`)
+async function handleChangeColor (event: typeof IpcMainEvent, ip:number, { r, g, b }:RGBColor, dimming:number) {
+  return execFunction(`echo -n '{"id":1,"method":"setPilot","params":{"r":${r},"g":${g},"b":${b},"dimming": ${dimming}}}' | nc -u -w 1 ${ip} 38899`)
 }
 
-async function handleSetTemp (event: typeof IpcMainEvent, temp: number, dimming: number) {
-  return execFunction(`echo -n '{"id":1,"method":"setPilot","params":{"temp":${temp},"dimming": ${dimming}}}' | nc -u -w 1 ${ips[0]} 38899`)
+async function handleSetTemp (event: typeof IpcMainEvent, ip:number, temp: number, dimming: number) {
+  return execFunction(`echo -n '{"id":1,"method":"setPilot","params":{"temp":${temp},"dimming": ${dimming}}}' | nc -u -w 1 ${ip} 38899`)
 }
 
-async function handleSetBulb (event: typeof IpcMainEvent, state: boolean) {
-  return execFunction(`echo -n '{"id":1,"method":"setState","params":{"state":${state}}}' | nc -u -w 1 ${ips[0]} 38899`)
+async function handleSetBulb (event: typeof IpcMainEvent, ip:number, state: boolean) {
+  return execFunction(`echo -n '{"id":1,"method":"setState","params":{"state":${state}}}' | nc -u -w 1 ${ip} 38899`)
 }
 
 async function handleGetBulbs (event: typeof IpcMainEvent) {
   const bulbsRequests = ips.map(ip => execFunction(`echo -n '{"method":"getPilot","params":{}}' | nc -u -w 1 ${ip} 38899`))
-  return Promise.all(bulbsRequests)
+  const responses = await Promise.all(bulbsRequests)
+  return responses.map((response,index)=> ({...response, ip: ips[index]}))
 }
 
 const createWindow = () => {
@@ -32,6 +33,7 @@ const createWindow = () => {
   })
 
   window.loadFile('index.html')
+  window.webContents.openDevTools()
 }
 
 app.whenReady().then(() => {
@@ -54,7 +56,7 @@ app.on('window-all-closed', () => {
   }
 })
 
-function execFunction (functionStatement: string) {
+function execFunction (functionStatement: string): Promise<Response> {
   return new Promise((resolve, reject) => {
     exec(functionStatement, (error: Error, stdout: string, stderr: string) => {
       if (error) {

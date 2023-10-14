@@ -10,22 +10,23 @@
       http-equiv="X-Content-Security-Policy"
       content="default-src 'self'; script-src 'self'"
     />
-    <title>Hello from Electron renderer!</title>
+    <title>Light control PRO</title>
     <script defer src="./renderer.js"></script>
   </head>
   <body>
-    <h4 class="response"></h4>
-    <button class="toggle-bulb-button">Off</button>
-    <button class="reload-bulbs-button">Reload</button>
-    <fieldset id="mode-selector">
-      <input type="radio" id="color" name="mode" value="color" checked />
-      <label for="color">Color</label>
-      <input type="radio" id="temp" name="mode" value="temp" />
-      <label for="temp">Temperature</label>
-    </fieldset>
-    <input type="range" id="dimming-range" name="dimming" min="10" max="100" />
-    <label for="dimming">Dimming</label>
-    <input id="color-picker" type="color"/>
-    <input id="temp-picker" type="range" min="2200" max="6200">
+    <button id="reload-button">Reload</button>
+    <div id="bulb-template">
+      <li class="bulb-section">
+        <h4 class="response"></h4>
+        <button class="bulb-switch"></button>
+        <fieldset class="mode-selector">
+        </fieldset>
+        <input type="range" class="dimming-range" name="dimming" min="10" max="100" />
+        <label for="dimming">Dimming</label>
+        <input class="color-picker" type="color"/>
+        <input class="temp-picker" type="range" min="2200" max="6200">
+      </li>
+    </div>
+    <div id="bulbs-container"></div>
   </body>
 </html>
