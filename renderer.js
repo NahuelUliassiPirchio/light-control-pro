@@ -8,8 +8,10 @@ let bulbs
 
   const bulbsContainer = document.getElementById('bulbs-container')
   bulbs.forEach(bulb => {
+    if (!bulb) return
     bulbsContainer.appendChild(getBulbHTML(bulb))
   })
+  if (bulbsContainer.innerHTML === '') bulbsContainer.innerHTML = '<h2>No bulbs have been found</h2>'
   template.remove()
 })()
 
@@ -18,18 +20,22 @@ reloadButton.addEventListener('click', () => {
 })
 
 function getBulbHTML (bulb) {
-  const clone = template.cloneNode(true)
-  const responseHeader = clone.querySelector('.response')
+  const bulbTemplate = template.querySelector('.bulb-section').cloneNode(true)
+  const responseHeader = bulbTemplate.querySelector('.response')
 
-  const bulbSwitch = clone.querySelector('.bulb-switch')
+  const bulbSwitch = bulbTemplate.querySelector('.bulb-switch')
   bulbSwitch.innerHTML = bulb.result.state ? 'Off' : 'On'
 
-  const modeSelector = clone.querySelector('.mode-selector')
-  const colorPicker = clone.querySelector('.color-picker')
+  const modeSelector = bulbTemplate.querySelector('.mode-selector')
+  const colorPicker = bulbTemplate.querySelector('.color-picker')
   colorPicker.value = (bulb.result.r || bulb.result.g || bulb.result.b) ? rgbToHex(bulb.result.r, bulb.result.g, bulb.result.b) : colorPicker.value
-  const tempPicker = clone.querySelector('.temp-picker')
+  const tempPicker = bulbTemplate.querySelector('.temp-picker')
   tempPicker.value = bulb.result.temp ?? tempPicker.value
-  const dimmingRange = clone.querySelector('.dimming-range')
+  const sceneSelector = bulbTemplate.querySelector('#scene-selector')
+  sceneSelector.value = bulb.result.sceneId ?? sceneSelector.value
+  const sceneSpeedRange = bulbTemplate.querySelector('.speed-range')
+  sceneSpeedRange.value = bulb.result.speed ?? sceneSpeedRange.value
+  const dimmingRange = bulbTemplate.querySelector('.dimming-range')
   dimmingRange.value = bulb.result.dimming
 
   const colorInput = document.createElement('input')
@@ -56,6 +62,18 @@ function getBulbHTML (bulb) {
   modeSelector.appendChild(tempInput)
   modeSelector.appendChild(tempLabel)
 
+  const sceneInput = document.createElement('input')
+  sceneInput.type = 'radio'
+  sceneInput.value = 'scene'
+  sceneInput.id = 'scene' + bulb.result.mac
+  sceneInput.name = 'mode' + bulb.result.mac
+  sceneInput.checked = bulb.result.scene
+  const sceneLabel = document.createElement('label')
+  sceneLabel.htmlFor = 'scene' + bulb.result.mac
+  sceneLabel.innerText = 'Scene'
+  modeSelector.appendChild(sceneInput)
+  modeSelector.appendChild(sceneLabel)
+
   bulbSwitch.addEventListener('click', async (event) => {
     const isBulbOn = event.target.innerHTML !== 'On'
     const response = await window.bulbNetworking.setBulb(bulb.ip, !isBulbOn)
@@ -66,21 +84,24 @@ function getBulbHTML (bulb) {
   if (bulb.result.temp) {
     modeSelector.querySelector(`#temp${bulb.result.mac}`).checked = true
     colorPicker.disabled = true
-  } else {
+    sceneSelector.disabled = true
+    sceneSpeedRange.disabled = true
+  } else if (bulb.result.r) {
     modeSelector.querySelector(`#color${bulb.result.mac}`).checked = true
     tempPicker.disabled = true
+    sceneSelector.disabled = true
+    sceneSpeedRange.disabled = true
+  } else if (bulb.result.sceneId) {
+    modeSelector.querySelector(`#scene${bulb.result.mac}`).checked = true
+    tempPicker.disabled = true
+    colorPicker.disabled = true
   }
-
-  dimmingRange.addEventListener('change', async (event) => {
-    if (!colorPicker.disabled) await window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), event.target.value)
-    else {
-      await window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, event.target.value)
-    }
-  })
 
   modeSelector.addEventListener('change', async (event) => {
     colorPicker.disabled = event.target.value !== 'color'
     tempPicker.disabled = event.target.value !== 'temp'
+    sceneSelector.disabled = event.target.value !== 'scene'
+    sceneSpeedRange.disabled = event.target.value !== 'scene'
   })
 
   tempPicker.addEventListener('change', async (event) => {
@@ -94,7 +115,23 @@ function getBulbHTML (bulb) {
     responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
   })
 
-  return clone
+  sceneSelector.addEventListener('change', async (event) => {
+    const response = await window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value)
+    responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
+  })
+
+  sceneSpeedRange.addEventListener('change', async (event) => {
+    const response = await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value)
+    responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
+  })
+
+  dimmingRange.addEventListener('change', async (event) => {
+    if (!colorPicker.disabled) await window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), event.target.value)
+    else if (!tempPicker.disabled) await window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, event.target.value)
+    else if (!sceneSpeedRange.disabled) await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value)
+  })
+
+  return bulbTemplate
 }
 
 function hexaToRGB (hexaColor) {
@@ -107,7 +144,6 @@ function hexaToRGB (hexaColor) {
     b
   }
 }
-
 function componentToHex (c) {
   const hex = c.toString(16)
   return hex.length === 1 ? '0' + hex : hex

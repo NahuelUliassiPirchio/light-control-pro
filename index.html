@@ -21,12 +21,55 @@
         <button class="bulb-switch"></button>
         <fieldset class="mode-selector">
         </fieldset>
-        <input type="range" class="dimming-range" name="dimming" min="10" max="100" />
         <label for="dimming">Dimming</label>
+        <input type="range" class="dimming-range" name="dimming" min="10" max="100" />
         <input class="color-picker" type="color"/>
         <input class="temp-picker" type="range" min="2200" max="6200">
+        <div id="scenes">
+          <label for="speed">Speed</label>
+          <input type="range" class="speed-range" name="speed" min="10" max="200" />
+          <select id="scene-selector">
+            <option class="red" value="0" selected="" disabled="">Select an option</option>
+            <option value="0" disabled="">---Static Scenes---</option>  
+            <option value="6">Cozy</option>
+            <option value="11">Warm White</option>
+            <option value="12">Daylight</option>
+            <option value="13">Cool white</option>
+            <option value="14">Night light</option>
+            <option value="15">Focus</option>
+            <option value="16">Relax</option>
+            <option value="17">True colors</option>
+            <option value="18">TV time</option>
+            <option value="19">Plantgrowth</option>
+            <option value="0" disabled="">---Dynamic Scenes---</option>
+            <option value="1">Ocean</option>
+            <option value="2">Romance</option>
+            <option value="3">Sunset</option>
+            <option value="4">Party</option>
+            <option value="5">Fireplace</option>
+            <option value="7">Forest</option>
+            <option value="8">Pastel Colors</option>
+            <option value="20">Spring</option>
+            <option value="21">Summer</option>
+            <option value="22">Fall</option>
+            <option value="23">Deepdive</option>
+            <option value="24">Jungle</option>
+            <option value="25">Mojito</option>
+            <option value="26">Club</option>
+            <option value="27">Christmas</option>
+            <option value="28">Halloween</option>
+            <option value="29">Candlelight</option>
+            <option value="30">Golden white</option>
+            <option value="31">Pulse</option>
+            <option value="32">Steampunk</option>
+            <option value="0" disabled="">---Miscellaneous---</option>
+            <option value="9">Wake up</option>
+            <option value="10">Bedtime</option>
+            <option value="1000">Rhythm</option>
+          </select>
+        </div>
       </li>
     </div>
-    <div id="bulbs-container"></div>
+    <ul id="bulbs-container"></ul>
   </body>
 </html>
