@@ -10,6 +10,7 @@
       http-equiv="X-Content-Security-Policy"
       content="default-src 'self'; script-src 'self'"
     />
+    <link rel="stylesheet" href="style.css">
     <title>Light control PRO</title>
     <script defer src="./renderer.js"></script>
   </head>
@@ -18,14 +19,17 @@
     <div id="bulb-template">
       <li class="bulb-section">
         <h4 class="response"></h4>
-        <button class="bulb-switch"></button>
+        <label class="bulb-switch">
+          <input type="checkbox">
+          <span class="slider round"></span>
+        </label>
         <fieldset class="mode-selector">
         </fieldset>
         <label for="dimming">Dimming</label>
         <input type="range" class="dimming-range" name="dimming" min="10" max="100" />
-        <input class="color-picker" type="color"/>
-        <input class="temp-picker" type="range" min="2200" max="6200">
-        <div id="scenes">
+        <input id="color" class="color-picker tab-content" type="color"/>
+        <input id="temp" class="temp-picker tab-content" type="range" min="2200" max="6200">
+        <div id="scene" class="tab-content">
           <label for="speed">Speed</label>
           <input type="range" class="speed-range" name="speed" min="10" max="200" />
           <select id="scene-selector">

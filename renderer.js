@@ -23,8 +23,8 @@ function getBulbHTML (bulb) {
   const bulbTemplate = template.querySelector('.bulb-section').cloneNode(true)
   const responseHeader = bulbTemplate.querySelector('.response')
 
-  const bulbSwitch = bulbTemplate.querySelector('.bulb-switch')
-  bulbSwitch.innerHTML = bulb.result.state ? 'Off' : 'On'
+  const bulbSwitch = bulbTemplate.querySelector('.bulb-switch > input')
+  bulbSwitch.checked = bulb.result.state
 
   const modeSelector = bulbTemplate.querySelector('.mode-selector')
   const colorPicker = bulbTemplate.querySelector('.color-picker')
@@ -74,34 +74,36 @@ function getBulbHTML (bulb) {
   modeSelector.appendChild(sceneInput)
   modeSelector.appendChild(sceneLabel)
 
-  bulbSwitch.addEventListener('click', async (event) => {
-    const isBulbOn = event.target.innerHTML !== 'On'
+  const updateTabs = (bulbContainer) => {
+    const tabs = bulbTemplate.querySelectorAll('.tab-content')
+    tabs.forEach(tab => {
+      const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
+      if (selectedMode === tab.id) {
+        tab.style.display = 'block'
+        return
+      }
+      tab.style.display = 'none'
+    })
+  }
+
+  bulbSwitch.addEventListener('change', async (event) => {
+    const isBulbOn = !event.target.checked
     const response = await window.bulbNetworking.setBulb(bulb.ip, !isBulbOn)
     responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
-    event.target.innerHTML = isBulbOn ? 'On' : 'Off'
+    event.target.innerHTML = !isBulbOn
   })
 
   if (bulb.result.temp) {
     modeSelector.querySelector(`#temp${bulb.result.mac}`).checked = true
-    colorPicker.disabled = true
-    sceneSelector.disabled = true
-    sceneSpeedRange.disabled = true
   } else if (bulb.result.r) {
     modeSelector.querySelector(`#color${bulb.result.mac}`).checked = true
-    tempPicker.disabled = true
-    sceneSelector.disabled = true
-    sceneSpeedRange.disabled = true
   } else if (bulb.result.sceneId) {
     modeSelector.querySelector(`#scene${bulb.result.mac}`).checked = true
-    tempPicker.disabled = true
-    colorPicker.disabled = true
   }
+  updateTabs(bulbTemplate)
 
   modeSelector.addEventListener('change', async (event) => {
-    colorPicker.disabled = event.target.value !== 'color'
-    tempPicker.disabled = event.target.value !== 'temp'
-    sceneSelector.disabled = event.target.value !== 'scene'
-    sceneSpeedRange.disabled = event.target.value !== 'scene'
+    updateTabs(bulbTemplate)
   })
 
   tempPicker.addEventListener('change', async (event) => {
@@ -126,9 +128,18 @@ function getBulbHTML (bulb) {
   })
 
   dimmingRange.addEventListener('change', async (event) => {
-    if (!colorPicker.disabled) await window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), event.target.value)
-    else if (!tempPicker.disabled) await window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, event.target.value)
-    else if (!sceneSpeedRange.disabled) await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value)
+    const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
+    switch (selectedMode) {
+      case 'color':
+        await window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), event.target.value)
+        break
+      case 'temp':
+        await window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, event.target.value)
+        break
+      case 'scene':
+        await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value)
+        break
+    }
   })
 
   return bulbTemplate
