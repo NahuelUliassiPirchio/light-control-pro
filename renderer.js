@@ -46,7 +46,8 @@ function getBulbHTML (bulb) {
   colorInput.checked = bulb.result.r
   const colorLabel = document.createElement('label')
   colorLabel.htmlFor = 'color' + bulb.result.mac
-  colorLabel.innerText = 'Color'
+  colorLabel.innerHTML = '<img class="tab-selector" src="./public/color-picker.svg" alt="Color Picker tab">'
+  colorLabel.title = 'color picker'
   modeSelector.appendChild(colorInput)
   modeSelector.appendChild(colorLabel)
 
@@ -58,7 +59,8 @@ function getBulbHTML (bulb) {
   tempInput.checked = bulb.result.temp
   const tempLabel = document.createElement('label')
   tempLabel.htmlFor = 'temp' + bulb.result.mac
-  tempLabel.innerText = 'Temperature'
+  tempLabel.innerHTML = '<img class="tab-selector" src="./public/temperature-picker.svg" alt="Temperature Picker tab">'
+  tempLabel.title = 'temperature picker'
   modeSelector.appendChild(tempInput)
   modeSelector.appendChild(tempLabel)
 
@@ -71,6 +73,8 @@ function getBulbHTML (bulb) {
   const sceneLabel = document.createElement('label')
   sceneLabel.htmlFor = 'scene' + bulb.result.mac
   sceneLabel.innerText = 'Scene'
+  sceneLabel.innerHTML = '<img class="tab-selector" src="./public/scene-picker.svg" alt="Scene Picker tab">'
+  sceneLabel.title = 'scene picker'
   modeSelector.appendChild(sceneInput)
   modeSelector.appendChild(sceneLabel)
 
@@ -79,7 +83,7 @@ function getBulbHTML (bulb) {
     tabs.forEach(tab => {
       const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
       if (selectedMode === tab.id) {
-        tab.style.display = 'block'
+        tab.style.display = 'flex'
         return
       }
       tab.style.display = 'none'
@@ -111,7 +115,7 @@ function getBulbHTML (bulb) {
     responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
   })
 
-  colorPicker.addEventListener('change', async (event) => {
+  colorPicker.addEventListener('input', async (event) => {
     const rgbColor = hexaToRGB(event.target.value)
     const response = await window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value)
     responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'

@@ -1,3 +1,143 @@
+:root {
+  --background-color: #000;
+  --card-background: #333;
+  --text-color: #fff;
+  --text-font: Arial, sans-serif;
+  --secondary-color: #ff4500;
+}
+
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-family: var(--text-font);
+}
+
+#bulbs-container{
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.bulb-section {
+  background-color: var(--card-background);
+  list-style: none;
+  padding: 1rem;
+  flex: 0 0 calc(25% - 10px);
+  margin: 5px;
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 200px;
+  max-width: 300px;
+}
+.bulb-section .bulb-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+.bulb-section .tab-content {
+  height: 30%;
+}
+
+#scene {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 15px;
+  border-radius: 5px;
+  outline: none;
+  opacity: 0.7;
+  -webkit-transition: .2s;
+  transition: opacity .2s
+}
+
+.icon {
+  width: 40px;
+}
+
+.mode-selector {
+  display: flex;
+  justify-content: space-around;
+  border: none;
+  padding: 0;
+  margin: 0;
+  margin-top: 1px;
+}
+
+.mode-selector > input {
+  position: fixed;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mode-selector [type="radio"]:checked + label img {
+  opacity: 100%;
+}
+
+.tab-selector {
+  padding: 0.1rem;
+  background: #4d4851;
+  opacity: 30%;
+}
+
+.tab-selector {
+  width: 2rem;
+  height: 2rem;
+  object-fit: cover;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.temp-picker {
+  accent-color: var(--card-background);
+  accent-color: linear-gradient(90deg, rgba(254,223,165,1) 0%, rgba(247,251,254,1) 50%, rgba(202,232,254,1) 100%);
+  background: rgb(254,223,165);
+  background: linear-gradient(90deg, rgba(254,223,165,1) 0%, rgba(247,251,254,1) 50%, rgba(202,232,254,1) 100%);
+}
+
+.dimming {
+  display: flex;
+  align-items: center;
+}
+
+.dimming-range {
+  accent-color: var(--card-background);
+  accent-color: linear-gradient(90deg, rgba(254,223,165,1) 0%, rgba(247,251,254,1) 50%, rgba(202,232,254,1) 100%);
+  background: rgb(0,0,0);
+  background: linear-gradient(90deg, rgba(0,0,0,0.7035189075630253) 0%, rgba(255,255,255,1) 100%);
+}
+#color, #temp {
+  max-height: 20%;
+}
+
+.tab-content > select {
+  width: 100%;
+  cursor: pointer;
+  background: #474444;
+  color: white;
+}
+.speed-container {
+  display: flex;
+  flex-direction: row;
+  gap: .5rem;
+}
+
+.speed-container img {
+  width: 30px;
+}
+
+.color-picker {
+  background-color: black;
+  margin: 0 auto;
+}
+
 .bulb-switch {
   position: relative;
   display: inline-block;
