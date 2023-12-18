@@ -1,6 +1,19 @@
 const template = document.getElementById('bulb-template')
 const reloadButton = document.getElementById('reload-button')
 
+function updateBulb (container, bulbId, color, opacity) {
+  const bulb = container.querySelector('#' + bulbId)
+  if (typeof color === 'number') {
+    bulb.style.backgroundColor = kelvinToHexColor(color)
+    console.log(color)
+  } else {
+    const { r, g, b } = color
+    bulb.style.backgroundColor = rgbToHex(r, g, b)
+  }
+  console.log(opacity)
+  bulb.style.opacity = opacity / 100
+}
+
 let bulbs
 (async () => {
   bulbs = await window.bulbNetworking.getBulbs()
@@ -20,8 +33,10 @@ reloadButton.addEventListener('click', () => {
 })
 
 function getBulbHTML (bulb) {
+  const bulbId = 'bulb' + bulb.result.mac
+
   const bulbTemplate = template.querySelector('.bulb-section').cloneNode(true)
-  const responseHeader = bulbTemplate.querySelector('.response')
+  const errorContainer = bulbTemplate.querySelector('.error')
 
   const bulbSwitch = bulbTemplate.querySelector('.bulb-switch > input')
   bulbSwitch.checked = bulb.result.state
@@ -37,6 +52,15 @@ function getBulbHTML (bulb) {
   sceneSpeedRange.value = bulb.result.speed ?? sceneSpeedRange.value
   const dimmingRange = bulbTemplate.querySelector('.dimming-range')
   dimmingRange.value = bulb.result.dimming
+
+  const bulbContainer = bulbTemplate.querySelector('.bulb-container')
+  bulbContainer.innerHTML = `<img class="bulb" id="${bulbId}" src="./public/bulb.svg" alt="Bulb">`
+
+  updateBulb(bulbContainer, bulbId, parseInt(bulb.result.temp) || {
+    r: bulb.result.r,
+    g: bulb.result.g,
+    b: bulb.result.b
+  }, bulb.result.dimming)
 
   const colorInput = document.createElement('input')
   colorInput.type = 'radio'
@@ -93,9 +117,13 @@ function getBulbHTML (bulb) {
   bulbSwitch.addEventListener('change', async (event) => {
     const isBulbOn = !event.target.checked
     const response = await window.bulbNetworking.setBulb(bulb.ip, !isBulbOn)
-    responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
+    if (!response.result.success) updateError('There was an error updating the bulb.')
     event.target.innerHTML = !isBulbOn
   })
+
+  function updateError (message) {
+    errorContainer.innerHTML = message
+  }
 
   if (bulb.result.temp) {
     modeSelector.querySelector(`#temp${bulb.result.mac}`).checked = true
@@ -112,38 +140,43 @@ function getBulbHTML (bulb) {
 
   tempPicker.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value)
-    responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
+    updateBulb(bulbContainer, bulbId, parseInt(event.target.value), dimmingRange.value)
+    if (!response.result.success) updateError('There was an error updating the bulb.')
   })
 
   colorPicker.addEventListener('input', async (event) => {
     const rgbColor = hexaToRGB(event.target.value)
     const response = await window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value)
-    responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
+    updateBulb(bulbContainer, bulbId, { r: rgbColor.r, g: rgbColor.g, b: rgbColor.b }, dimmingRange.value)
+    if (!response.result.success) updateError('There was an error updating the bulb.')
   })
 
   sceneSelector.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value)
-    responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
+    if (!response.result.success) updateError('There was an error updating the bulb.')
   })
 
   sceneSpeedRange.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value)
-    responseHeader.innerHTML = response.result.success && 'Bulb successfully updated'
+    if (!response.result.success) updateError('There was an error updating the bulb.')
   })
 
   dimmingRange.addEventListener('change', async (event) => {
     const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
+    let response
     switch (selectedMode) {
       case 'color':
-        await window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), event.target.value)
+        response = await window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), event.target.value)
         break
       case 'temp':
-        await window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, event.target.value)
+        response = await window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, event.target.value)
         break
       case 'scene':
-        await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value)
+        response = await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value)
         break
     }
+    if (!response.result.success) return updateError('There was an error updating the bulb.')
+    updateBulb(bulbContainer, bulbId, selectedMode === 'temp' ? parseInt(tempPicker.value) : hexaToRGB(colorPicker.value), event.target.value)
   })
 
   return bulbTemplate
@@ -165,4 +198,23 @@ function componentToHex (c) {
 }
 function rgbToHex (r, g, b) {
   return '#' + componentToHex(r) + componentToHex(g) + componentToHex(b)
+}
+function kelvinToHexColor (kelvin) {
+  const colorScale = [
+    { temp: 1000, color: '#FF4500' }, // Red
+    { temp: 3000, color: '#FFA07A' }, // LightSalmon
+    { temp: 5000, color: '#FFFACD' }, // LemonChiffon
+    { temp: 7000, color: '#FFFFFF' }, // White
+    { temp: 10000, color: '#D3D3D3' } // LightGray
+  ]
+
+  let color = ''
+  for (let i = 0; i < colorScale.length; i++) {
+    if (kelvin < colorScale[i].temp) {
+      color = colorScale[i].color
+      break
+    }
+  }
+
+  return color
 }

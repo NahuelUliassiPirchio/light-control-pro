@@ -35,9 +35,22 @@ body {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+  height: 7rem;
 }
 .bulb-section .tab-content {
   height: 30%;
+}
+
+.error{
+  margin: 0;
+  padding: 0;
+  color: red;
+}
+
+.bulb{
+  width: 55%;
+  border-radius: 50%;
+  padding: 1% 6%;
 }
 
 #scene {
