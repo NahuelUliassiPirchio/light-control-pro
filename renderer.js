@@ -5,12 +5,10 @@ function updateBulb (container, bulbId, color, opacity) {
   const bulb = container.querySelector('#' + bulbId)
   if (typeof color === 'number') {
     bulb.style.backgroundColor = kelvinToHexColor(color)
-    console.log(color)
   } else {
     const { r, g, b } = color
     bulb.style.backgroundColor = rgbToHex(r, g, b)
   }
-  console.log(opacity)
   bulb.style.opacity = opacity / 100
 }
 
@@ -117,7 +115,7 @@ function getBulbHTML (bulb) {
   bulbSwitch.addEventListener('change', async (event) => {
     const isBulbOn = !event.target.checked
     const response = await window.bulbNetworking.setBulb(bulb.ip, !isBulbOn)
-    if (!response.result.success) updateError('There was an error updating the bulb.')
+    if (!response.result.success) return updateError('There was an error updating the bulb.')
     event.target.innerHTML = !isBulbOn
   })
 
@@ -141,24 +139,28 @@ function getBulbHTML (bulb) {
   tempPicker.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value)
     updateBulb(bulbContainer, bulbId, parseInt(event.target.value), dimmingRange.value)
-    if (!response.result.success) updateError('There was an error updating the bulb.')
+    if (!response.result.success) return updateError('There was an error updating the bulb.')
+    bulbSwitch.checked = true
   })
 
   colorPicker.addEventListener('input', async (event) => {
     const rgbColor = hexaToRGB(event.target.value)
     const response = await window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value)
     updateBulb(bulbContainer, bulbId, { r: rgbColor.r, g: rgbColor.g, b: rgbColor.b }, dimmingRange.value)
-    if (!response.result.success) updateError('There was an error updating the bulb.')
+    if (!response.result.success) return updateError('There was an error updating the bulb.')
+    bulbSwitch.checked = true
   })
 
   sceneSelector.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value)
-    if (!response.result.success) updateError('There was an error updating the bulb.')
+    if (!response.result.success) return updateError('There was an error updating the bulb.')
+    bulbSwitch.checked = true
   })
 
   sceneSpeedRange.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value)
-    if (!response.result.success) updateError('There was an error updating the bulb.')
+    if (!response.result.success) return updateError('There was an error updating the bulb.')
+    bulbSwitch.checked = true
   })
 
   dimmingRange.addEventListener('change', async (event) => {
@@ -177,6 +179,7 @@ function getBulbHTML (bulb) {
     }
     if (!response.result.success) return updateError('There was an error updating the bulb.')
     updateBulb(bulbContainer, bulbId, selectedMode === 'temp' ? parseInt(tempPicker.value) : hexaToRGB(colorPicker.value), event.target.value)
+    bulbSwitch.checked = true
   })
 
   return bulbTemplate
