@@ -10,7 +10,7 @@
       http-equiv="X-Content-Security-Policy"
       content="default-src 'self'; script-src 'self'"
     />
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./styles/style.css">
     <title>Light control PRO</title>
     <script defer src="./renderer.js"></script>
   </head>
@@ -28,7 +28,7 @@
         </div>
         <div class="dimming">
           <input type="range" class="dimming-range" name="dimming" min="10" max="100" />
-          <img class="icon" src="./public/brightness.svg" alt="dimming icon">
+          <img class="icon" src="../public/brightness.svg" alt="dimming icon">
         </div>
         <input id="color" class="color-picker tab-content" type="color" value="#ffffff"/>
         <input id="temp" class="temp-picker tab-content" type="range" min="2200" max="6200">
@@ -73,9 +73,9 @@
             <option value="1000">Rhythm</option>
           </select>
           <div class="speed-container">
-            <img src="./public/tortoise.svg" alt="low speed icon"/>
+            <img src="../public/tortoise.svg" alt="low speed icon"/>
             <input type="range" class="speed-range" name="speed" min="10" max="200" />
-            <img src="./public/rabbit.svg" alt="high speed icon"/>
+            <img src="../public/rabbit.svg" alt="high speed icon"/>
           </div>
         </div>
         <fieldset class="mode-selector">

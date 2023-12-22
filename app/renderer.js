@@ -52,7 +52,7 @@ function getBulbHTML (bulb) {
   dimmingRange.value = bulb.result.dimming
 
   const bulbContainer = bulbTemplate.querySelector('.bulb-container')
-  bulbContainer.innerHTML = `<img class="bulb" id="${bulbId}" src="./public/bulb.svg" alt="Bulb">`
+  bulbContainer.innerHTML = `<img class="bulb" id="${bulbId}" src="../public/bulb.svg" alt="Bulb">`
 
   updateBulb(bulbContainer, bulbId, parseInt(bulb.result.temp) || {
     r: bulb.result.r,
@@ -68,7 +68,7 @@ function getBulbHTML (bulb) {
   colorInput.checked = bulb.result.r
   const colorLabel = document.createElement('label')
   colorLabel.htmlFor = 'color' + bulb.result.mac
-  colorLabel.innerHTML = '<img class="tab-selector" src="./public/color-picker.svg" alt="Color Picker tab">'
+  colorLabel.innerHTML = '<img class="tab-selector" src="../public/color-picker.svg" alt="Color Picker tab">'
   colorLabel.title = 'color picker'
   modeSelector.appendChild(colorInput)
   modeSelector.appendChild(colorLabel)
@@ -81,7 +81,7 @@ function getBulbHTML (bulb) {
   tempInput.checked = bulb.result.temp
   const tempLabel = document.createElement('label')
   tempLabel.htmlFor = 'temp' + bulb.result.mac
-  tempLabel.innerHTML = '<img class="tab-selector" src="./public/temperature-picker.svg" alt="Temperature Picker tab">'
+  tempLabel.innerHTML = '<img class="tab-selector" src="../public/temperature-picker.svg" alt="Temperature Picker tab">'
   tempLabel.title = 'temperature picker'
   modeSelector.appendChild(tempInput)
   modeSelector.appendChild(tempLabel)
@@ -95,7 +95,7 @@ function getBulbHTML (bulb) {
   const sceneLabel = document.createElement('label')
   sceneLabel.htmlFor = 'scene' + bulb.result.mac
   sceneLabel.innerText = 'Scene'
-  sceneLabel.innerHTML = '<img class="tab-selector" src="./public/scene-picker.svg" alt="Scene Picker tab">'
+  sceneLabel.innerHTML = '<img class="tab-selector" src="../public/scene-picker.svg" alt="Scene Picker tab">'
   sceneLabel.title = 'scene picker'
   modeSelector.appendChild(sceneInput)
   modeSelector.appendChild(sceneLabel)
