@@ -1,4 +1,4 @@
-const { BrowserWindow, app, ipcMain } = require('electron')
+const { BrowserWindow, app, ipcMain, Menu } = require('electron')
 const fs = require('fs')
 const { exec } = require('child_process')
 const path = require('path')
@@ -72,8 +72,33 @@ const createWindow = () => {
   })
 
   window.loadFile('./app/index.html')
-  // window.webContents.openDevTools()
+  window.webContents.openDevTools()
 }
+
+const createShortcutWindow = () => {
+  const window = new BrowserWindow({
+    width: 600,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, './app/preload.js')
+    }
+  })
+
+  window.loadFile('./app/config.html')
+  window.webContents.openDevTools()
+}
+
+const menuTemplate = [
+  {
+    label: 'Configuration',
+    submenu: [
+      {
+        label: 'Shortcuts',
+        click: createShortcutWindow
+      }
+    ]
+  }
+]
 
 app.whenReady().then(() => {
   const userDataFilePath = app.getPath('userData')
@@ -89,6 +114,8 @@ app.whenReady().then(() => {
 
   createWindow()
 
+  const menu = Menu.buildFromTemplate(menuTemplate)
+  Menu.setApplicationMenu(menu)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
