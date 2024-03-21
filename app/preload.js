@@ -7,3 +7,8 @@ contextBridge.exposeInMainWorld('bulbNetworking', {
   setScene: (ip, sceneId, speed, dimming) => ipcRenderer.invoke('setScene', ip, sceneId, speed, dimming),
   getBulbs: () => ipcRenderer.invoke('getBulbs')
 })
+
+contextBridge.exposeInMainWorld('dataProcessing', {
+  addStatus: (data) => ipcRenderer.invoke('addStatus', data),
+  getStatus: () => ipcRenderer.invoke('getStatus')
+})

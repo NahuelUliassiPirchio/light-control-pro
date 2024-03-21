@@ -59,6 +59,60 @@ function updateBulb ({ container, bulbId, color, colorTemp, sceneId, opacity }) 
   bulb.style.opacity = opacity / 100
 }
 
+const modal = document.getElementById('modal')
+function closeModal () {
+  modal.style.display = 'none'
+}
+modal.children[0].addEventListener('click', () => closeModal())
+function openModal (bulb) {
+  modal.style.display = 'block'
+  document.getElementById('hiddenInput').value = bulb
+}
+async function saveName () {
+  const status = JSON.parse(document.getElementById('hiddenInput').value)
+  const name = document.getElementById('nameInput').value
+  if (!name) return alert('Specify a name please')
+  await window.dataProcessing.addStatus({
+    ...status,
+    name
+  })
+  alert('Status successfully saved')
+  closeModal()
+}
+modal.children[6].addEventListener('click', async () => await saveName())
+window.onclick = function (event) {
+  if (event.target === modal) {
+    closeModal()
+  }
+}
+
+let favStatus
+(async () => {
+  favStatus = await window.dataProcessing.getStatus()
+  const favsContainer = document.getElementById('fav-status')
+  favStatus.forEach(status => {
+    status = status[0]
+    const statusItem = document.createElement('div')
+    statusItem.className = 'status'
+    statusItem.innerText = status.name
+    statusItem.addEventListener('click', async () => {
+      let response
+      try {
+        if ('r' in status) {
+          response = await window.bulbNetworking.changeColor(status.ip, { r: status.r, g: status.g, b: status.b }, status.dimming)
+        }
+        if ('temp' in status) { response = await window.bulbNetworking.setTemp(status.ip, status.temp, status.dimming) }
+        // case 'scene':
+        //   response = await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value)
+        // if (!response.result.success) return updateError('There was an error updating the bulb.')
+      } catch (error) {
+        alert('there was an error')
+      }
+      console.log(response)
+    })
+    favsContainer.appendChild(statusItem)
+  })
+})()
 let bulbs
 (async () => {
   bulbs = await window.bulbNetworking.getBulbs()
@@ -99,6 +153,27 @@ function getBulbHTML (bulb) {
   sceneSpeedRange.value = bulb.data.result.speed ?? sceneSpeedRange.value
   const dimmingRange = bulbTemplate.querySelector('.dimming-range')
   dimmingRange.value = bulb.data.result.dimming
+
+  const saveStatusButton = bulbTemplate.querySelector('.save-status')
+  saveStatusButton.addEventListener('click', async () => {
+    let properties = {
+      dimming: dimmingRange.value
+    }
+    const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
+    if (selectedMode === 'temp') {
+      properties.temp = parseInt(tempPicker.value)
+    } else if (selectedMode === 'color') {
+      properties = {
+        ...properties,
+        ...hexaToRGB(colorPicker.value)
+      }
+    }
+
+    openModal(JSON.stringify({
+      ...properties,
+      ...bulb
+    }))
+  })
 
   const bulbContainer = bulbTemplate.querySelector('.bulb-container')
   bulbContainer.innerHTML = `<img class="bulb" id="${bulbId}" src="../public/bulb.svg" alt="Bulb">`

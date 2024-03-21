@@ -16,6 +16,16 @@
   </head>
   <body>
     <button id="reload-button">Reload</button>
+    <div id="modal">
+      <span>&times;</span>
+      <h2>Enter Your Name</h2>
+      <input type="text" id="nameInput">
+      <br><br>
+      <input type="hidden" id="hiddenInput" value="">
+      <button>Save</button>
+    </div>
+    <div id="fav-status">
+    </div>
     <div id="bulb-template">
       <li class="bulb-section">
         <h4 class="error"></h4>
@@ -80,6 +90,9 @@
         </div>
         <fieldset class="mode-selector">
         </fieldset>
+        <button class="save-status">
+          save status
+        </button>
       </li>
     </div>
     <ul id="bulbs-container"></ul>
