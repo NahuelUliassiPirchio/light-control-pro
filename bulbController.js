@@ -64,7 +64,7 @@ exports.handleSetBulb = async (event, ip, state) => {
   }
 }
 
-function discoverBulbs () {
+function discoverBulbs (callback) {
   return new Promise((resolve, reject) => {
     const client = createSocket('udp4')
     const message = Buffer.from(JSON.stringify({ method: 'getPilot', params: {} }))
@@ -75,8 +75,9 @@ function discoverBulbs () {
     })
 
     client.on('message', (msg, rinfo) => {
-      console.log(`Bombilla descubierta: ${rinfo.address} - ${msg}`)
-      bulbs.push({ ip: rinfo.address, data: JSON.parse(msg.toString()) })
+      const bulbData = { ip: rinfo.address, ...JSON.parse(msg.toString()) }
+      console.log(bulbData)
+      callback(bulbData)
     })
 
     client.bind(() => {
@@ -96,13 +97,63 @@ function discoverBulbs () {
   })
 }
 
-exports.handleGetBulbs = async (event) => {
+exports.handleGetBulbs = async (callback) => {
   try {
-    const bulbs = await discoverBulbs()
+    const bulbs = await discoverBulbs(callback)
     console.log(`Bombillas descubiertas: ${bulbs.length}`)
     return bulbs
   } catch (error) {
     console.error('Error al descubrir bombillas:', error)
+    throw error
+  }
+}
+
+exports.handleGetBulbState = async (event, ip) => {
+  const message = '{"method":"getPilot","params":{}}'
+  const response = await sendCommandToBulb(ip, message)
+  return JSON.parse(response)
+}
+
+exports.handleBulbStatus = async (ip, commandParams) => {
+  const params = {}
+
+  if (commandParams.state !== undefined) {
+    params.state = commandParams.state
+  }
+
+  if (commandParams.dimming !== undefined) {
+    params.dimming = commandParams.dimming
+  }
+
+  if (commandParams.color) {
+    params.r = commandParams.color.r
+    params.g = commandParams.color.g
+    params.b = commandParams.color.b
+  }
+
+  if (commandParams.temp !== undefined) {
+    params.temp = commandParams.temp
+  }
+
+  if (commandParams.sceneId !== undefined) {
+    params.sceneId = commandParams.sceneId
+    if (commandParams.sceneSpeed !== undefined) {
+      params.speed = commandParams.sceneSpeed
+    }
+  }
+
+  const message = {
+    method: 'setPilot',
+    params
+  }
+
+  const messageString = JSON.stringify(message)
+  try {
+    const response = await sendCommandToBulb(ip, messageString)
+    console.log('Respuesta del comando enviado:', response)
+    return JSON.parse(response)
+  } catch (error) {
+    console.error('Error al enviar el comando a la bombilla:', error)
     throw error
   }
 }

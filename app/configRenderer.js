@@ -1,68 +1,93 @@
 let isRecording = false
 let pressedKeys = {}
-
+let editingShortcutId = null // Used to identify if we are editing an existing shortcut
 const statesList = document.getElementById('statesList')
-let states;
+const shortcutsContainer = document.getElementById('shortcutsContainer')
+const recButton = document.getElementById('recordingButton')
+const editIndicator = document.getElementById('editIndicator'); // Assume this is added to your HTML
+
 (async () => {
-  states = await window.dataProcessing.getStatus()
-  states.forEach(state => {
-    const stateOption = document.createElement('option')
-    stateOption.innerText = state[0].name
-    stateOption.value = state[0].name
-    statesList.appendChild(stateOption)
-  })
+  await loadStates()
+  await loadShortcuts()
 })()
 
-const shortcutForm = document.getElementById('shortcutForm')
-const recButton = document.getElementById('recordingButton')
-recButton.addEventListener('click', _event => {
-  recButton.innerText = 'Recording...'
-  toggleRecording()
-})
+async function loadStates () {
+  const states = await window.dataProcessing.getStatus()
+  states.forEach(state => {
+    const stateOption = document.createElement('option')
+    stateOption.innerText = state.name
+    stateOption.value = state.name
+    statesList.appendChild(stateOption)
+  })
+}
 
-function toggleRecording () {
+async function loadShortcuts () {
+  const shortcuts = await window.dataProcessing.getShortcuts()
+  shortcutsContainer.innerHTML = '<h2>Existing Shortcuts</h2>'
+  shortcuts.forEach(shortcut => {
+    const shortcutDisplay = document.createElement('div')
+    shortcutDisplay.innerHTML = `${shortcut.pressedKeys.join('+')} - ${shortcut.status}`
+    const editBtn = document.createElement('button')
+    editBtn.textContent = 'Edit'
+    editBtn.onclick = () => startEditingShortcut(shortcut.id, shortcut.status)
+    const deleteBtn = document.createElement('button')
+    deleteBtn.textContent = 'Delete'
+    deleteBtn.onclick = () => deleteShortcut(shortcut.id)
+    shortcutDisplay.appendChild(editBtn)
+    shortcutDisplay.appendChild(deleteBtn)
+    shortcutsContainer.appendChild(shortcutDisplay)
+  })
+}
+
+function startEditingShortcut (id, status) {
+  editingShortcutId = id
+  statesList.value = status
+  editIndicator.style.display = 'block'
+  editIndicator.textContent = `Editing Shortcut: ${id}`
+  recButton.click() // Simulate a click to start recording/editing
+}
+
+async function deleteShortcut (id) {
+  await window.dataProcessing.removeShortcut(id)
+  await loadShortcuts()
+}
+
+async function toggleRecording () {
   isRecording = !isRecording
+  recButton.innerText = isRecording ? 'Stop Recording' : 'Record'
 
-  if (isRecording) {
+  if (!isRecording) {
+    document.removeEventListener('keydown', keyDown)
+    document.removeEventListener('keyup', keyUp)
+    if (Object.keys(pressedKeys).length > 0) {
+      const shortcutData = {
+        pressedKeys: Object.keys(pressedKeys),
+        status: statesList.value
+      }
+      if (editingShortcutId !== null) {
+        await window.dataProcessing.editShortcut(editingShortcutId, shortcutData)
+        editingShortcutId = null
+        editIndicator.style.display = 'none' // Hide edit indicator
+      } else {
+        await window.dataProcessing.addShortcut(shortcutData)
+      }
+      await loadShortcuts()
+    }
+  } else {
     pressedKeys = {}
     document.addEventListener('keydown', keyDown)
     document.addEventListener('keyup', keyUp)
-
-    const stopRecordingShortcut = document.createElement('button')
-    stopRecordingShortcut.innerHTML = 'Stop Recording'
-    stopRecordingShortcut.addEventListener('click', _event => {
-      pressedKeys = {}
-      recButton.innerText = 'Recording...'
-      toggleRecording()
-    })
-    shortcutForm.appendChild(stopRecordingShortcut)
-  } else {
-    document.removeEventListener('keydown', keyDown)
-    document.removeEventListener('keyup', keyUp)
-    if (Object.values(pressedKeys).length > 0) {
-      // guardar shortcut
-      const deleteShortcut = document.createElement('button')
-      deleteShortcut.innerHTML = 'Delete shortcut'
-      deleteShortcut.addEventListener('click', _event => {
-        pressedKeys = {}
-        recButton.innerText = 'Recording...'
-      })
-      shortcutForm.appendChild(deleteShortcut)
-    }
   }
 }
 
-function updateKeyInfo () {
-  const keys = Object.keys(pressedKeys)
-  recButton.innerHTML = keys.length > 0 ? `${keys.join('+')}` : 'Recording...'
-}
-
+// Your original keyDown function
 function keyDown (event) {
   event.preventDefault()
   const key = event.key.toLowerCase()
   const isModifierKey = key === 'shift' || key === 'control' || key === 'alt'
   if (!isModifierKey) {
     if (Object.values(pressedKeys).length > 0) {
+      pressedKeys[key] = true
       toggleRecording()
     } else {
       return
@@ -77,3 +102,10 @@ function keyUp (event) {
   delete pressedKeys[key]
   updateKeyInfo()
 }
+
+function updateKeyInfo () {
+  const keys = Object.keys(pressedKeys)
+  recButton.innerText = keys.length > 0 ? `${keys.join(' + ')}` : 'Record'
+}
+
+recButton.addEventListener('click', toggleRecording)

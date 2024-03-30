@@ -5,10 +5,18 @@ contextBridge.exposeInMainWorld('bulbNetworking', {
   changeColor: (ip, color, dimming) => ipcRenderer.invoke('changeColor', ip, color, dimming),
   setTemp: (ip, temp, dimming) => ipcRenderer.invoke('setTemp', ip, temp, dimming),
   setScene: (ip, sceneId, speed, dimming) => ipcRenderer.invoke('setScene', ip, sceneId, speed, dimming),
-  getBulbs: () => ipcRenderer.invoke('getBulbs')
+  startDiscovery: () => ipcRenderer.send('startDiscovery'),
+  onBulbDiscovered: (callback) => ipcRenderer.on('bulbDiscovered', (event, arg) => callback(arg))
 })
 
 contextBridge.exposeInMainWorld('dataProcessing', {
   addStatus: (data) => ipcRenderer.invoke('addStatus', data),
-  getStatus: () => ipcRenderer.invoke('getStatus')
+  getStatus: () => ipcRenderer.invoke('getStatus'),
+  editStatus: (id, data) => ipcRenderer.invoke('editStatus', id, data),
+  removeStatus: (id) => ipcRenderer.invoke('removeStatus', id),
+
+  getShortcuts: () => ipcRenderer.invoke('getShortcuts'),
+  addShortcut: (data) => ipcRenderer.invoke('addShortcut', data),
+  editShortcut: (id, data) => ipcRenderer.invoke('editShortcut', id, data),
+  removeShortcut: (id) => ipcRenderer.invoke('removeShortcut', id)
 })

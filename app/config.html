@@ -1,26 +1,23 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
-    <meta
-      http-equiv="X-Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <meta http-equiv="X-Content-Security-Policy" content="default-src 'self'; script-src 'self'">
     <link rel="stylesheet" href="./styles/style.css">
     <title>Configuration</title>
     <script defer src="./configRenderer.js"></script>
-  </head>
-  <body>
+</head>
+<body>
     <h1>Shortcut Creator</h1>
-    <p>Presiona las teclas para asignar un atajo:</p>
-    <select name="states" id="statesList">
-    </select>
+    <p>Press the keys to assign a shortcut:</p>
+    <select name="states" id="statesList"></select>
     <form id="shortcutForm">
-      <button type="button" id="recordingButton">Record</button>
+      <div id="editIndicator" style="display: none;"></div>
+        <button type="button" id="recordingButton">Record</button>
     </form>
-  </body>
+    <div id="shortcutsContainer">
+        <h2>Existing Shortcuts</h2>
+    </div>
+</body>
 </html>

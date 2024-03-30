@@ -1,4 +1,4 @@
-const template = document.getElementById('bulb-template')
+const template = document.getElementById('bulb-template').content
 const reloadButton = document.getElementById('reload-button')
 
 const sceneColors = {
@@ -72,10 +72,11 @@ async function saveName () {
   const status = JSON.parse(document.getElementById('hiddenInput').value)
   const name = document.getElementById('nameInput').value
   if (!name) return alert('Specify a name please')
-  await window.dataProcessing.addStatus({
+  const data = {
     ...status,
     name
-  })
+  }
+  await window.dataProcessing.addStatus(data)
   alert('Status successfully saved')
   closeModal()
 }
@@ -91,7 +92,6 @@ let favStatus
   favStatus = await window.dataProcessing.getStatus()
   const favsContainer = document.getElementById('fav-status')
   favStatus.forEach(status => {
-    status = status[0]
     const statusItem = document.createElement('div')
     statusItem.className = 'status'
     statusItem.innerText = status.name
@@ -113,46 +113,42 @@ let favStatus
     favsContainer.appendChild(statusItem)
   })
 })()
-let bulbs
-(async () => {
-  bulbs = await window.bulbNetworking.getBulbs()
-  console.log(bulbs)
 
+document.addEventListener('DOMContentLoaded', () => {
   const bulbsContainer = document.getElementById('bulbs-container')
-  bulbs.forEach(bulb => {
-    if (!bulb) return
-    bulbsContainer.appendChild(getBulbHTML(bulb))
+  window.bulbNetworking.startDiscovery()
+
+  window.bulbNetworking.onBulbDiscovered((bulbData) => {
+    bulbsContainer.appendChild(getBulbHTML(bulbData))
   })
-  if (bulbsContainer.innerHTML === '') bulbsContainer.innerHTML = '<h2>No bulbs have been found</h2>'
-  template.remove()
-})()
+})
 
 reloadButton.addEventListener('click', () => {
   location.reload()
 })
 
 function getBulbHTML (bulb) {
-  const bulbId = 'bulb' + bulb.data.result.mac
+  const bulbId = 'bulb' + bulb.result.mac
 
   const bulbTemplate = template.querySelector('.bulb-section').cloneNode(true)
   const errorContainer = bulbTemplate.querySelector('.error')
 
   const bulbSwitch = bulbTemplate.querySelector('.bulb-switch > input')
-  bulbSwitch.checked = bulb.data.result.state
+  bulbSwitch.checked = bulb.result.state
 
   const modeSelector = bulbTemplate.querySelector('.mode-selector')
   const colorPicker = bulbTemplate.querySelector('.color-picker')
-  if (bulb.data.result.r || bulb.data.result.g || bulb.data.result.b) {
-    colorPicker.value = rgbToHex(bulb.data.result.r, bulb.data.result.g, bulb.data.result.b)
+  if (bulb.result.r || bulb.result.g || bulb.result.b) {
+    colorPicker.value = rgbToHex(bulb.result.r, bulb.result.g, bulb.result.b)
   }
   const tempPicker = bulbTemplate.querySelector('.temp-picker')
-  tempPicker.value = bulb.data.result.temp ?? tempPicker.value
+  tempPicker.value = bulb.result.temp ?? tempPicker.value
   const sceneSelector = bulbTemplate.querySelector('#scene-selector')
-  sceneSelector.value = bulb.data.result.sceneId ?? sceneSelector.value
+  sceneSelector.value = bulb.result.sceneId ?? sceneSelector.value
   const sceneSpeedRange = bulbTemplate.querySelector('.speed-range')
-  sceneSpeedRange.value = bulb.data.result.speed ?? sceneSpeedRange.value
+  sceneSpeedRange.value = bulb.result.speed ?? sceneSpeedRange.value
   const dimmingRange = bulbTemplate.querySelector('.dimming-range')
-  dimmingRange.value = bulb.data.result.dimming
+  dimmingRange.value = bulb.result.dimming
 
   const saveStatusButton = bulbTemplate.querySelector('.save-status')
   saveStatusButton.addEventListener('click', async () => {
@@ -181,24 +177,24 @@ function getBulbHTML (bulb) {
   updateBulb({
     container: bulbContainer,
     bulbId,
-    colorTemp: parseInt(bulb.data.result.temp),
+    colorTemp: parseInt(bulb.result.temp),
     color: {
-      r: bulb.data.result.r,
-      g: bulb.data.result.g,
-      b: bulb.data.result.b
+      r: bulb.result.r,
+      g: bulb.result.g,
+      b: bulb.result.b
     },
-    sceneId: bulb.data.result.sceneId,
-    opacity: bulb.data.result.dimming
+    sceneId: bulb.result.sceneId,
+    opacity: bulb.result.dimming
   })
 
   const colorInput = document.createElement('input')
   colorInput.type = 'radio'
   colorInput.value = 'color'
-  colorInput.id = 'color' + bulb.data.result.mac
-  colorInput.name = 'mode' + bulb.data.result.mac
-  colorInput.checked = bulb.data.result.r
+  colorInput.id = 'color' + bulb.result.mac
+  colorInput.name = 'mode' + bulb.result.mac
+  colorInput.checked = bulb.result.r
   const colorLabel = document.createElement('label')
-  colorLabel.htmlFor = 'color' + bulb.data.result.mac
+  colorLabel.htmlFor = 'color' + bulb.result.mac
   colorLabel.innerHTML = '<img class="tab-selector" src="../public/color-picker.svg" alt="Color Picker tab">'
   colorLabel.title = 'color picker'
   modeSelector.appendChild(colorInput)
@@ -207,11 +203,11 @@ function getBulbHTML (bulb) {
   const tempInput = document.createElement('input')
   tempInput.type = 'radio'
   tempInput.value = 'temp'
-  tempInput.id = 'temp' + bulb.data.result.mac
-  tempInput.name = 'mode' + bulb.data.result.mac
-  tempInput.checked = bulb.data.result.temp
+  tempInput.id = 'temp' + bulb.result.mac
+  tempInput.name = 'mode' + bulb.result.mac
+  tempInput.checked = bulb.result.temp
   const tempLabel = document.createElement('label')
-  tempLabel.htmlFor = 'temp' + bulb.data.result.mac
+  tempLabel.htmlFor = 'temp' + bulb.result.mac
   tempLabel.innerHTML = '<img class="tab-selector" src="../public/temperature-picker.svg" alt="Temperature Picker tab">'
   tempLabel.title = 'temperature picker'
   modeSelector.appendChild(tempInput)
@@ -220,11 +216,11 @@ function getBulbHTML (bulb) {
   const sceneInput = document.createElement('input')
   sceneInput.type = 'radio'
   sceneInput.value = 'scene'
-  sceneInput.id = 'scene' + bulb.data.result.mac
-  sceneInput.name = 'mode' + bulb.data.result.mac
-  sceneInput.checked = bulb.data.result.scene
+  sceneInput.id = 'scene' + bulb.result.mac
+  sceneInput.name = 'mode' + bulb.result.mac
+  sceneInput.checked = bulb.result.scene
   const sceneLabel = document.createElement('label')
-  sceneLabel.htmlFor = 'scene' + bulb.data.result.mac
+  sceneLabel.htmlFor = 'scene' + bulb.result.mac
   sceneLabel.innerText = 'Scene'
   sceneLabel.innerHTML = '<img class="tab-selector" src="../public/scene-picker.svg" alt="Scene Picker tab">'
   sceneLabel.title = 'scene picker'
@@ -234,7 +230,7 @@ function getBulbHTML (bulb) {
   const updateTabs = (bulbContainer) => {
     const tabs = bulbTemplate.querySelectorAll('.tab-content')
     tabs.forEach(tab => {
-      const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.data.result.mac}"]:checked`).value
+      const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
       if (selectedMode === tab.id) {
         tab.style.display = 'flex'
         return
@@ -254,12 +250,12 @@ function getBulbHTML (bulb) {
     errorContainer.innerHTML = message
   }
 
-  if (bulb.data.result.temp) {
-    modeSelector.querySelector(`#temp${bulb.data.result.mac}`).checked = true
-  } else if (bulb.data.result.r) {
-    modeSelector.querySelector(`#color${bulb.data.result.mac}`).checked = true
-  } else if (bulb.data.result.sceneId) {
-    modeSelector.querySelector(`#scene${bulb.data.result.mac}`).checked = true
+  if (bulb.result.temp) {
+    modeSelector.querySelector(`#temp${bulb.result.mac}`).checked = true
+  } else if (bulb.result.r) {
+    modeSelector.querySelector(`#color${bulb.result.mac}`).checked = true
+  } else if (bulb.result.sceneId) {
+    modeSelector.querySelector(`#scene${bulb.result.mac}`).checked = true
   }
   updateTabs(bulbTemplate)
 
@@ -296,7 +292,7 @@ function getBulbHTML (bulb) {
   })
 
   dimmingRange.addEventListener('change', async (event) => {
-    const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.data.result.mac}"]:checked`).value
+    const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
     let response
     switch (selectedMode) {
       case 'color':
