@@ -95,16 +95,28 @@ let favStatus
     const statusItem = document.createElement('div')
     statusItem.className = 'status'
     statusItem.innerText = status.name
+
+    const deleteBtn = document.createElement('button')
+    deleteBtn.innerHTML = '❌'
+    deleteBtn.className = 'delete-btn'
+    deleteBtn.onclick = async (event) => {
+      event.stopPropagation()
+      const isConfirmed = confirm(`Are you sure you want to delete "${status.name}"?`)
+      if (isConfirmed) {
+        try {
+          await window.dataProcessing.removeStatus(status.id)
+          statusItem.remove()
+        } catch (error) {
+          alert('There was an error deleting the status.')
+        }
+      }
+    }
+    statusItem.appendChild(deleteBtn)
+
     statusItem.addEventListener('click', async () => {
       let response
       try {
-        if ('r' in status) {
-          response = await window.bulbNetworking.changeColor(status.ip, { r: status.r, g: status.g, b: status.b }, status.dimming)
-        }
-        if ('temp' in status) { response = await window.bulbNetworking.setTemp(status.ip, status.temp, status.dimming) }
-        // case 'scene':
-        //   response = await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value)
-        // if (!response.result.success) return updateError('There was an error updating the bulb.')
+        await window.bulbNetworking.setStatus(status.ip, status.result)
       } catch (error) {
         alert('there was an error')
       }
@@ -153,6 +165,7 @@ function getBulbHTML (bulb) {
   const saveStatusButton = bulbTemplate.querySelector('.save-status')
   saveStatusButton.addEventListener('click', async () => {
     let properties = {
+      state: bulbSwitch.checked,
       dimming: dimmingRange.value
     }
     const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value

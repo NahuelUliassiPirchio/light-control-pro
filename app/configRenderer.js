@@ -1,10 +1,11 @@
+const runOnStartupCheckbox = document.getElementById('runOnStartup')
 let isRecording = false
 let pressedKeys = {}
-let editingShortcutId = null // Used to identify if we are editing an existing shortcut
+let editingShortcutId = null
 const statesList = document.getElementById('statesList')
 const shortcutsContainer = document.getElementById('shortcutsContainer')
 const recButton = document.getElementById('recordingButton')
-const editIndicator = document.getElementById('editIndicator'); // Assume this is added to your HTML
+const editIndicator = document.getElementById('editIndicator');
 
 (async () => {
   await loadStates()
@@ -12,24 +13,40 @@ const editIndicator = document.getElementById('editIndicator'); // Assume this i
 })()
 
 async function loadStates () {
+  const settings = await window.dataProcessing.getSettings()
+  if (settings) {
+    settings.forEach(setting => {
+      if (setting.id === 'startup') {
+        runOnStartupCheckbox.checked = setting.runOnStartup
+      }
+    })
+  } else {
+    runOnStartupCheckbox.checked = false
+  }
+
   const states = await window.dataProcessing.getStatus()
   states.forEach(state => {
     const stateOption = document.createElement('option')
     stateOption.innerText = state.name
-    stateOption.value = state.name
+    stateOption.value = state.id
     statesList.appendChild(stateOption)
   })
 }
+
+runOnStartupCheckbox.addEventListener('change', async (e) => {
+  await window.dataProcessing.addOrEditSetting('startup', { runOnStartup: runOnStartupCheckbox.checked })
+})
 
 async function loadShortcuts () {
   const shortcuts = await window.dataProcessing.getShortcuts()
   shortcutsContainer.innerHTML = '<h2>Existing Shortcuts</h2>'
   shortcuts.forEach(shortcut => {
+    const statusName = getStateNameById(shortcut.statusId)
     const shortcutDisplay = document.createElement('div')
-    shortcutDisplay.innerHTML = `${shortcut.pressedKeys.join('+')} - ${shortcut.status}`
+    shortcutDisplay.innerHTML = `${shortcut.pressedKeys.join('+')} - ${statusName}`
     const editBtn = document.createElement('button')
     editBtn.textContent = 'Edit'
-    editBtn.onclick = () => startEditingShortcut(shortcut.id, shortcut.status)
+    editBtn.onclick = () => startEditingShortcut(shortcut.id, shortcut.statusId)
     const deleteBtn = document.createElement('button')
     deleteBtn.textContent = 'Delete'
     deleteBtn.onclick = () => deleteShortcut(shortcut.id)
@@ -39,12 +56,21 @@ async function loadShortcuts () {
   })
 }
 
-function startEditingShortcut (id, status) {
+function getStateNameById (statusId) {
+  for (const option of statesList.options) {
+    if (option.value === statusId) {
+      return option.text
+    }
+  }
+  return ''
+}
+
+function startEditingShortcut (id, statusId) {
   editingShortcutId = id
-  statesList.value = status
+  statesList.value = statusId
   editIndicator.style.display = 'block'
   editIndicator.textContent = `Editing Shortcut: ${id}`
-  recButton.click() // Simulate a click to start recording/editing
+  recButton.click()
 }
 
 async function deleteShortcut (id) {
@@ -60,14 +86,15 @@ async function toggleRecording () {
     document.removeEventListener('keydown', keyDown)
     document.removeEventListener('keyup', keyUp)
     if (Object.keys(pressedKeys).length > 0) {
+      const selectedStateOption = statesList.options[statesList.selectedIndex]
       const shortcutData = {
         pressedKeys: Object.keys(pressedKeys),
-        status: statesList.value
+        statusId: selectedStateOption.value
       }
       if (editingShortcutId !== null) {
         await window.dataProcessing.editShortcut(editingShortcutId, shortcutData)
         editingShortcutId = null
-        editIndicator.style.display = 'none' // Hide edit indicator
+        editIndicator.style.display = 'none'
       } else {
         await window.dataProcessing.addShortcut(shortcutData)
       }
@@ -80,7 +107,6 @@ async function toggleRecording () {
   }
 }
 
-// Your original keyDown function
 function keyDown (event) {
   event.preventDefault()
   const key = event.key.toLowerCase()

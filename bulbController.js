@@ -114,7 +114,7 @@ exports.handleGetBulbState = async (event, ip) => {
   return JSON.parse(response)
 }
 
-exports.handleBulbStatus = async (ip, commandParams) => {
+exports.handleSetBulbStatus = async (_event, ip, commandParams) => {
   const params = {}
 
   if (commandParams.state !== undefined) {

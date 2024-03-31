@@ -1,6 +1,6 @@
 const { BrowserWindow, app, ipcMain, Menu, globalShortcut } = require('electron')
-const { handleBulbStatus, handleChangeColor, handleGetBulbs, handleSetBulb, handleSetScene, handleSetTemp, handleGetBulbState } = require('./bulbController.js')
-const { handleAddData, handleEditData, handleGetData, handleRemoveData } = require('./dataController.js')
+const { handleSetBulbStatus, handleChangeColor, handleGetBulbs, handleSetBulb, handleSetScene, handleSetTemp } = require('./bulbController.js')
+const { handleAddData, handleEditData, handleGetData, handleRemoveData, handleAddOrUpdateSetting } = require('./dataController.js')
 const path = require('path')
 
 let mainWindow
@@ -46,12 +46,26 @@ const menuTemplate = [
 app.whenReady().then(() => {
   const userDataFilePath = app.getPath('userData')
 
+  handleGetData('', path.join(userDataFilePath, 'settings.json'))
+    .then(async settings => {
+      if (settings) {
+        settings.forEach(setting => {
+          switch (setting.id) {
+            case 'startup':
+              app.setLoginItemSettings({
+                openAtLogin: setting.runOnStartup
+              })
+          }
+        })
+      }
+    })
+
   handleGetData('', path.join(userDataFilePath, 'shortcuts.json'))
     .then(async shortcuts => {
       if (!shortcuts) return
       const status = await handleGetData('', path.join(userDataFilePath, 'status.json'))
       shortcuts.forEach(async shortcut => {
-        const shortcutStatus = status.filter(state => state.name === shortcut.status)[0]
+        const shortcutStatus = status.filter(state => state.id === shortcut.statusId)[0]
         if (Object.values(shortcutStatus).length === 0) return
         const shortcutAccelerator = shortcut.pressedKeys.map(key => {
           switch (key.toLowerCase()) {
@@ -73,10 +87,8 @@ app.whenReady().then(() => {
           // console.log('Enviado')
           // await handleSetBulb('', shortcutStatus.ip, newState)
 
-          await handleBulbStatus(shortcutStatus.ip, shortcutStatus.result)
+          await handleSetBulbStatus('', shortcutStatus.ip, shortcutStatus.result)
         })
-
-        // asignar shortcuts, en shortcut.pressedKeys hay un objeto con las teclas del shortcut en las keys
       })
     })
 
@@ -87,6 +99,7 @@ app.whenReady().then(() => {
   ipcMain.handle('changeColor', handleChangeColor)
   ipcMain.handle('setTemp', handleSetTemp)
   ipcMain.handle('setScene', handleSetScene)
+  ipcMain.handle('setStatus', handleSetBulbStatus)
 
   ipcMain.handle('addStatus', (event, data) => handleAddData(event, data, path.join(userDataFilePath, 'status.json')))
   ipcMain.handle('getStatus', (event, ..._args) => handleGetData(event, path.join(userDataFilePath, 'status.json')))
@@ -97,6 +110,9 @@ app.whenReady().then(() => {
   ipcMain.handle('getShortcuts', (event, ..._args) => handleGetData(event, path.join(userDataFilePath, 'shortcuts.json')))
   ipcMain.handle('editShortcut', (event, id, data) => handleEditData(event, id, data, path.join(userDataFilePath, 'shortcuts.json')))
   ipcMain.handle('removeShortcut', (event, id) => handleRemoveData(event, id, path.join(userDataFilePath, 'shortcuts.json')))
+
+  ipcMain.handle('getSettings', (event, ..._args) => handleGetData(event, path.join(userDataFilePath, 'settings.json')))
+  ipcMain.handle('addOrEditSetting', (event, id, data) => handleAddOrUpdateSetting(event, id, data, path.join(userDataFilePath, 'settings.json')))
 
   createWindow()
 

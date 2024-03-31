@@ -1,6 +1,29 @@
 const fs = require('fs')
 const { v4: uuidv4 } = require('uuid')
 
+async function handleAddOrUpdateSetting (_event, settingId, data, filePath) {
+  console.log(data)
+  const fileExists = fs.existsSync(filePath)
+  let existingData = []
+
+  if (fileExists) {
+    const fileContent = fs.readFileSync(filePath, 'utf-8')
+    existingData = JSON.parse(fileContent)
+  }
+
+  const settingIndex = existingData.findIndex(item => item.id === settingId)
+
+  if (settingIndex !== -1) {
+    existingData[settingIndex] = { ...existingData[settingIndex], ...data }
+  } else {
+    const newData = { ...data, id: settingId }
+    existingData.push(newData)
+  }
+
+  fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf-8')
+  console.log('Setting updated in', filePath)
+}
+
 async function handleAddData (_event, data, filePath) {
   const fileExists = fs.existsSync(filePath)
   let existingData = []
@@ -69,5 +92,6 @@ module.exports = {
   handleAddData,
   handleEditData,
   handleRemoveData,
-  handleGetData
+  handleGetData,
+  handleAddOrUpdateSetting
 }
