@@ -16,13 +16,21 @@
   </head>
   <body>
     <button id="reload-button">Reload</button>
-    <div id="modal">
+    <button id="add-room-button">+ Add new room</button>
+    <div id="save-status-modal">
       <span>&times;</span>
-      <h2>Enter Your Name</h2>
+      <h2>Enter status name</h2>
       <input type="text" id="nameInput">
       <br><br>
       <input type="hidden" id="hiddenInput" value="">
       <button>Save</button>
+    </div>
+    <div id="myModal" class="modal">
+      <div class="modal-content">
+        <ul id="valuesList"></ul>
+        <button id="confirmBtn">Confirm</button>
+        <button id="cancelBtn">Cancel</button>
+      </div>
     </div>
     <div id="fav-status">
     </div>
@@ -30,7 +38,8 @@
       <li class="bulb-section">
         <h4 class="error"></h4>
         <div class="bulb-header">
-          <div class="bulb-container"></div>
+          <div class="bulb-container">
+          </div>
           <label class="bulb-switch">
             <input type="checkbox">
             <span class="slider round"></span>

@@ -2,7 +2,6 @@ const fs = require('fs')
 const { v4: uuidv4 } = require('uuid')
 
 async function handleAddOrUpdateSetting (_event, settingId, data, filePath) {
-  console.log(data)
   const fileExists = fs.existsSync(filePath)
   let existingData = []
 
@@ -18,6 +17,28 @@ async function handleAddOrUpdateSetting (_event, settingId, data, filePath) {
   } else {
     const newData = { ...data, id: settingId }
     existingData.push(newData)
+  }
+
+  fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf-8')
+  console.log('Setting updated in', filePath)
+}
+
+async function handleAddOrUpdateStoredBulb (_event, data, filePath) {
+  const fileExists = fs.existsSync(filePath)
+  let existingData = []
+
+  if (fileExists) {
+    const fileContent = fs.readFileSync(filePath, 'utf-8')
+    existingData = JSON.parse(fileContent)
+  }
+
+  const settingIndex = existingData.findIndex(item => item.mac === data.mac)
+
+  if (settingIndex !== -1) {
+    existingData[settingIndex] = { ...existingData[settingIndex], ...data }
+  } else {
+    if (!data.mac)data = { ...data, mac: uuidv4(), bulbs: [] }
+    existingData.push(data)
   }
 
   fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf-8')
@@ -93,5 +114,6 @@ module.exports = {
   handleEditData,
   handleRemoveData,
   handleGetData,
-  handleAddOrUpdateSetting
+  handleAddOrUpdateSetting,
+  handleAddOrUpdateStoredBulb
 }

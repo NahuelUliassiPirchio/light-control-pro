@@ -1,5 +1,7 @@
 const template = document.getElementById('bulb-template').content
 const reloadButton = document.getElementById('reload-button')
+const addRoomButton = document.getElementById('add-room-button')
+const bulbsContainer = document.getElementById('bulbs-container')
 
 const sceneColors = {
   // Static scenes
@@ -40,6 +42,10 @@ const sceneColors = {
   1000: [{ r: 255, g: 215, b: 0 }, { r: 218, g: 165, b: 32 }] // Rhythm
 }
 
+document.getElementById('cancelBtn').addEventListener('click', function () {
+  document.getElementById('myModal').style.display = 'none'
+})
+
 function updateBulb ({ container, bulbId, color, colorTemp, sceneId, opacity }) {
   const bulb = container.querySelector('#' + bulbId)
   if (colorTemp) {
@@ -59,7 +65,7 @@ function updateBulb ({ container, bulbId, color, colorTemp, sceneId, opacity }) 
   bulb.style.opacity = opacity / 100
 }
 
-const modal = document.getElementById('modal')
+const modal = document.getElementById('save-status-modal')
 function closeModal () {
   modal.style.display = 'none'
 }
@@ -87,17 +93,24 @@ window.onclick = function (event) {
   }
 }
 
+let storedBulbs
 let favStatus
 (async () => {
-  favStatus = await window.dataProcessing.getStatus()
+  storedBulbs = await window.dataProcessing.getStoredBulbs()
+  const rooms = storedBulbs.filter(bulb => bulb.bulbs)
+  rooms.forEach(room => {
+    bulbsContainer.appendChild(getRoomHTML(room))
+  })
+
   const favsContainer = document.getElementById('fav-status')
+  favStatus = await window.dataProcessing.getStatus()
   favStatus.forEach(status => {
     const statusItem = document.createElement('div')
     statusItem.className = 'status'
     statusItem.innerText = status.name
 
     const deleteBtn = document.createElement('button')
-    deleteBtn.innerHTML = '❌'
+    deleteBtn.innerHTML = '🗑️'
     deleteBtn.className = 'delete-btn'
     deleteBtn.onclick = async (event) => {
       event.stopPropagation()
@@ -124,13 +137,58 @@ let favStatus
     })
     favsContainer.appendChild(statusItem)
   })
+
+  addRoomButton.addEventListener('click', async () => {
+    await window.dataProcessing.addOrEditStoredBulbs({
+      name: 'New room'
+    })
+    location.reload()
+  })
 })()
 
+function populateList ({ allItems, selectedItemsMac }) {
+  const valuesList = document.getElementById('valuesList')
+  valuesList.innerHTML = ''
+  allItems.forEach(item => {
+    const listItem = document.createElement('li')
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    checkbox.value = item.name
+    if (selectedItemsMac) {
+      checkbox.checked = selectedItemsMac.includes(item.mac)
+    }
+    checkbox.setAttribute('mac', item.mac)
+    checkbox.setAttribute('data-name', item.name)
+
+    listItem.appendChild(checkbox)
+    listItem.append(item.name)
+    valuesList.appendChild(listItem)
+  })
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  const bulbsContainer = document.getElementById('bulbs-container')
   window.bulbNetworking.startDiscovery()
 
-  window.bulbNetworking.onBulbDiscovered((bulbData) => {
+  window.bulbNetworking.onBulbDiscovered(async (bulbData) => {
+    if (storedBulbs) {
+      const bulb = storedBulbs.filter(bulb => bulbData.result.mac === bulb.mac)
+      if (bulb.length > 0) {
+        bulbData = {
+          ...bulbData,
+          name: bulb[0].name
+        }
+      } else {
+        await window.dataProcessing.addOrEditStoredBulbs({
+          name: 'Bulb',
+          mac: bulbData.result.mac,
+          ip: bulbData.ip
+        })
+        bulbData = {
+          ...bulbData,
+          name: 'Bulb'
+        }
+      }
+    }
     bulbsContainer.appendChild(getBulbHTML(bulbData))
   })
 })
@@ -138,6 +196,222 @@ document.addEventListener('DOMContentLoaded', () => {
 reloadButton.addEventListener('click', () => {
   location.reload()
 })
+
+function getRoomHTML (room) {
+  const roomId = 'room' + room.mac
+
+  const bulbTemplate = template.querySelector('.bulb-section').cloneNode(true)
+  const errorContainer = bulbTemplate.querySelector('.error')
+
+  const bulbSwitch = bulbTemplate.querySelector('.bulb-switch > input')
+
+  if (room.name) {
+    const bulbNameInput = document.createElement('input')
+    bulbNameInput.className = 'bulb-name'
+    bulbNameInput.value = room.name
+
+    const bulbContainer = bulbTemplate.querySelector('.bulb-container')
+    bulbContainer.appendChild(bulbNameInput)
+
+    async function handleNameChange () {
+      const newName = bulbNameInput.value
+      const macAddress = roomId
+      await window.dataProcessing.addOrEditStoredBulbs({
+        ...room,
+        name: newName,
+        mac: macAddress
+      })
+    }
+
+    bulbNameInput.addEventListener('blur', handleNameChange)
+
+    bulbNameInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        bulbNameInput.blur()
+      }
+    })
+  }
+
+  if (!room.bulbs.length > 0) {
+    const tabs = bulbTemplate.querySelectorAll('.tab-content')
+    tabs.forEach(tab => {
+      tab.parentNode.removeChild(tab)
+    })
+    bulbTemplate.querySelector('.dimming').remove()
+    bulbTemplate.querySelector('.save-status').remove()
+    bulbTemplate.querySelector('.bulb-switch').remove()
+    bulbTemplate.querySelector('.mode-selector').remove()
+    bulbTemplate.style.justifyContent = ''
+    const noBulbMessage = document.createElement('p')
+    noBulbMessage.innerHTML = "This room doesn't have any bulbs"
+    bulbTemplate.appendChild(noBulbMessage)
+
+    const addBulbsButton = document.createElement('button')
+    addBulbsButton.textContent = 'Add bulb'
+    addBulbsButton.addEventListener('click', async (e) => {
+      document.getElementById('myModal').style.display = 'block'
+      populateList({
+        allItems: storedBulbs.filter(bulb => !bulb.bulbs)
+      })
+    })
+    bulbTemplate.appendChild(addBulbsButton)
+  } else {
+    const roomBulbs = storedBulbs.filter(obj => room.bulbs.includes(obj.mac))
+
+    const roomSwitch = bulbTemplate.querySelector('.bulb-switch > input')
+    roomSwitch.checked = false
+
+    const modeSelector = bulbTemplate.querySelector('.mode-selector')
+    const colorPicker = bulbTemplate.querySelector('.color-picker')
+    const tempPicker = bulbTemplate.querySelector('.temp-picker')
+    const sceneSelector = bulbTemplate.querySelector('#scene-selector')
+    const sceneSpeedRange = bulbTemplate.querySelector('.speed-range')
+    const dimmingRange = bulbTemplate.querySelector('.dimming-range')
+
+    const colorInput = document.createElement('input')
+    colorInput.type = 'radio'
+    colorInput.value = 'color'
+    colorInput.id = 'color' + roomId
+    colorInput.name = 'mode' + roomId
+    colorInput.checked = false
+    const colorLabel = document.createElement('label')
+    colorLabel.htmlFor = 'color' + roomId
+    colorLabel.innerHTML = '<img class="tab-selector" src="../public/color-picker.svg" alt="Color Picker tab">'
+    colorLabel.title = 'color picker'
+    modeSelector.appendChild(colorInput)
+    modeSelector.appendChild(colorLabel)
+
+    const tempInput = document.createElement('input')
+    tempInput.type = 'radio'
+    tempInput.value = 'temp'
+    tempInput.id = 'temp' + roomId
+    tempInput.name = 'mode' + roomId
+    tempInput.checked = true
+    const tempLabel = document.createElement('label')
+    tempLabel.htmlFor = 'temp' + roomId
+    tempLabel.innerHTML = '<img class="tab-selector" src="../public/temperature-picker.svg" alt="Temperature Picker tab">'
+    tempLabel.title = 'temperature picker'
+    modeSelector.appendChild(tempInput)
+    modeSelector.appendChild(tempLabel)
+
+    const sceneInput = document.createElement('input')
+    sceneInput.type = 'radio'
+    sceneInput.value = 'scene'
+    sceneInput.id = 'scene' + roomId
+    sceneInput.name = 'mode' + roomId
+    const sceneLabel = document.createElement('label')
+    sceneLabel.htmlFor = 'scene' + roomId
+    sceneLabel.innerText = 'Scene'
+    sceneLabel.innerHTML = '<img class="tab-selector" src="../public/scene-picker.svg" alt="Scene Picker tab">'
+    sceneLabel.title = 'scene picker'
+    modeSelector.appendChild(sceneInput)
+    modeSelector.appendChild(sceneLabel)
+
+    const updateTabs = (bulbContainer) => {
+      const tabs = bulbTemplate.querySelectorAll('.tab-content')
+      tabs.forEach(tab => {
+        const selectedMode = modeSelector.querySelector(`input[name="mode${roomId}"]:checked`).value
+        if (selectedMode === tab.id) {
+          tab.style.display = 'flex'
+          return
+        }
+        tab.style.display = 'none'
+      })
+    }
+
+    function updateError (message) {
+      errorContainer.innerHTML = message
+    }
+
+    modeSelector.querySelector(`#temp${roomId}`).checked = true
+    updateTabs(bulbTemplate)
+
+    modeSelector.addEventListener('change', async (event) => {
+      updateTabs(bulbTemplate)
+    })
+
+    roomSwitch.addEventListener('change', async (event) => {
+      const isBulbOn = !event.target.checked
+      const promises = roomBulbs.map(bulb => window.bulbNetworking.setBulb(bulb.ip, !isBulbOn))
+      await Promise.allSettled(promises)
+      event.target.innerHTML = !isBulbOn
+    })
+
+    tempPicker.addEventListener('change', async (event) => {
+      const promises = roomBulbs.map(bulb => window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value))
+      await Promise.allSettled(promises)
+
+      // if (!response.result.success) return updateError('There was an error updating the bulb.')
+      bulbSwitch.checked = true
+    })
+
+    colorPicker.addEventListener('input', async (event) => {
+      const rgbColor = hexaToRGB(event.target.value)
+      const promises = roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value))
+      await Promise.allSettled(promises)
+      // if (!response.result.success) return updateError('There was an error updating the bulb.')
+      bulbSwitch.checked = true
+    })
+
+    sceneSelector.addEventListener('change', async (event) => {
+      const promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value))
+      await Promise.allSettled(promises)
+      // if (!response.result.success) return updateError('There was an error updating the bulb.')
+      bulbSwitch.checked = true
+    })
+
+    sceneSpeedRange.addEventListener('change', async (event) => {
+      const promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value))
+      await Promise.allSettled(promises)
+      // if (!response.result.success) return updateError('There was an error updating the bulb.')
+      bulbSwitch.checked = true
+    })
+
+    dimmingRange.addEventListener('change', async (event) => {
+      const selectedMode = modeSelector.querySelector(`input[name="mode${roomId}"]:checked`).value
+      let response
+      let promises
+      switch (selectedMode) {
+        case 'color':
+          promises = roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), event.target.value))
+          break
+        case 'temp':
+          promises = roomBulbs.map(bulb => window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, event.target.value))
+          break
+        case 'scene':
+          promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value))
+          break
+      }
+      await Promise.allSettled(promises)
+      if (!response.result.success) return updateError('There was an error updating the bulb.')
+      bulbSwitch.checked = true
+    })
+
+    const addBulbsButton = document.createElement('button')
+    addBulbsButton.textContent = 'Add bulb'
+    addBulbsButton.addEventListener('click', async (e) => {
+      document.getElementById('myModal').style.display = 'block'
+      populateList({
+        allItems: storedBulbs.filter(bulb => !bulb.bulbs),
+        selectedItemsMac: room.bulbs
+      })
+    })
+    bulbTemplate.appendChild(addBulbsButton)
+  }
+
+  document.getElementById('confirmBtn').addEventListener('click', async function () {
+    const selectedValues = []
+    document.querySelectorAll('#valuesList input[type="checkbox"]:checked').forEach(checkbox => {
+      selectedValues.push(checkbox.getAttribute('mac'))
+    })
+
+    room.bulbs = selectedValues
+    await window.dataProcessing.addOrEditStoredBulbs(room)
+    document.getElementById('myModal').style.display = 'none'
+  })
+
+  return bulbTemplate
+}
 
 function getBulbHTML (bulb) {
   const bulbId = 'bulb' + bulb.result.mac
@@ -186,6 +460,29 @@ function getBulbHTML (bulb) {
 
   const bulbContainer = bulbTemplate.querySelector('.bulb-container')
   bulbContainer.innerHTML = `<img class="bulb" id="${bulbId}" src="../public/bulb.svg" alt="Bulb">`
+  if (bulb.name) {
+    const bulbNameInput = document.createElement('input')
+    bulbNameInput.className = 'bulb-name'
+    bulbNameInput.value = bulb.name
+    bulbContainer.appendChild(bulbNameInput)
+
+    async function handleNameChange () {
+      const newName = bulbNameInput.value
+      const macAddress = bulb.result.mac
+      await window.dataProcessing.addOrEditStoredBulbs({
+        name: newName,
+        mac: macAddress
+      })
+    }
+
+    bulbNameInput.addEventListener('blur', handleNameChange)
+
+    bulbNameInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        bulbNameInput.blur()
+      }
+    })
+  }
 
   updateBulb({
     container: bulbContainer,

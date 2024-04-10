@@ -1,6 +1,6 @@
 const { BrowserWindow, app, ipcMain, Menu, globalShortcut } = require('electron')
 const { handleSetBulbStatus, handleChangeColor, handleGetBulbs, handleSetBulb, handleSetScene, handleSetTemp } = require('./bulbController.js')
-const { handleAddData, handleEditData, handleGetData, handleRemoveData, handleAddOrUpdateSetting } = require('./dataController.js')
+const { handleAddData, handleEditData, handleGetData, handleRemoveData, handleAddOrUpdateSetting, handleAddOrUpdateStoredBulb } = require('./dataController.js')
 const path = require('path')
 
 let mainWindow
@@ -113,6 +113,9 @@ app.whenReady().then(() => {
 
   ipcMain.handle('getSettings', (event, ..._args) => handleGetData(event, path.join(userDataFilePath, 'settings.json')))
   ipcMain.handle('addOrEditSetting', (event, id, data) => handleAddOrUpdateSetting(event, id, data, path.join(userDataFilePath, 'settings.json')))
+
+  ipcMain.handle('getStoredBulbs', (event, ..._args) => handleGetData(event, path.join(userDataFilePath, 'bulbs.json')))
+  ipcMain.handle('addOrEditStoredBulbs', (event, data) => handleAddOrUpdateStoredBulb(event, data, path.join(userDataFilePath, 'bulbs.json')))
 
   createWindow()
 
