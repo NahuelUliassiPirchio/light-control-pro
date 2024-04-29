@@ -15,7 +15,6 @@ const createWindow = () => {
   })
 
   mainWindow.loadFile('./app/index.html')
-  mainWindow.webContents.openDevTools()
 }
 
 const createShortcutWindow = () => {
@@ -28,7 +27,6 @@ const createShortcutWindow = () => {
   })
 
   window.loadFile('./app/config.html')
-  window.webContents.openDevTools()
 }
 
 const menuTemplate = [
@@ -53,7 +51,9 @@ app.whenReady().then(() => {
           switch (setting.id) {
             case 'startup':
               app.setLoginItemSettings({
-                openAtLogin: setting.runOnStartup
+                openAtLogin: setting.runOnStartup || false,
+                openAsHidden: setting.runOnStartup || false,
+                path: app.getPath('exe')
               })
           }
         })

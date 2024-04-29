@@ -4,15 +4,34 @@
   "description": "A Cutting-Edge Electron Application for Effortless Smart Light Control from Your PC",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "electron-forge start",
     "dev": "electron --enable-logging .",
-    "build": "./node_modules/.bin/tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "electron-builder",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
   },
   "author": "Nahuel Uliassi Pirchio <uliassipirchio@gmail.com>",
   "license": "ISC",
+  "build": {
+    "appId": "nahueluliassipirchio.light.control.pro",
+    "linux": {
+      "category": "Utility",
+      "target": "AppImage",
+      "icon": "build/icons/"
+    }
+  },
   "devDependencies": {
-    "electron": "^26.3.0",
+    "@electron-forge/cli": "^7.4.0",
+    "@electron-forge/maker-deb": "^7.4.0",
+    "@electron-forge/maker-rpm": "^7.4.0",
+    "@electron-forge/maker-squirrel": "^7.4.0",
+    "@electron-forge/maker-zip": "^7.4.0",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.4.0",
+    "@electron-forge/plugin-fuses": "^7.4.0",
+    "@electron/fuses": "^1.8.0",
+    "electron": "^26.6.10",
+    "electron-builder": "^24.13.3",
     "eslint": "^8.51.0",
     "eslint-config-standard": "^17.1.0",
     "eslint-plugin-import": "^2.28.1",
@@ -20,6 +39,7 @@
     "eslint-plugin-promise": "^6.1.1"
   },
   "dependencies": {
+    "electron-squirrel-startup": "^1.0.0",
     "uuid": "^9.0.1"
   }
 }
