@@ -74,7 +74,7 @@ function openModal (bulb) {
   modal.style.display = 'block'
   document.getElementById('hiddenInput').value = bulb
 }
-async function saveName () {
+async function saveStatus () {
   const status = JSON.parse(document.getElementById('hiddenInput').value)
   const name = document.getElementById('nameInput').value
   if (!name) return alert('Specify a name please')
@@ -85,8 +85,9 @@ async function saveName () {
   await window.dataProcessing.addStatus(data)
   alert('Status successfully saved')
   closeModal()
+  location.reload()
 }
-modal.children[6].addEventListener('click', async () => await saveName())
+modal.children[6].addEventListener('click', async () => await saveStatus())
 window.onclick = function (event) {
   if (event.target === modal) {
     closeModal()
@@ -104,14 +105,17 @@ let favStatus
 
   const favsContainer = document.getElementById('fav-status')
   favStatus = await window.dataProcessing.getStatus()
+  if (favStatus.length === 0) document.querySelector('.fav-status-container').remove()
   favStatus.forEach(status => {
-    const statusItem = document.createElement('div')
+    const statusItem = document.createElement('button')
     statusItem.className = 'status'
     statusItem.innerText = status.name
 
-    const deleteBtn = document.createElement('button')
-    deleteBtn.innerHTML = '🗑️'
-    deleteBtn.className = 'delete-btn'
+    const deleteBtn = document.createElement('img')
+    // <img class="icon" src="../public/reload.svg" alt="Reload">
+    deleteBtn.src = '../public/delete-icon.svg'
+    deleteBtn.alt = 'Delete saved status'
+    deleteBtn.className = 'delete-status-button'
     deleteBtn.onclick = async (event) => {
       event.stopPropagation()
       const isConfirmed = confirm(`Are you sure you want to delete "${status.name}"?`)
@@ -129,7 +133,7 @@ let favStatus
     statusItem.addEventListener('click', async () => {
       let response
       try {
-        await window.bulbNetworking.setStatus(status.ip, status.result)
+        await window.bulbNetworking.setStatus(status.ip, status)
       } catch (error) {
         alert('there was an error')
       }
@@ -198,7 +202,7 @@ reloadButton.addEventListener('click', () => {
 })
 
 function getRoomHTML (room) {
-  const roomId = 'room' + room.mac
+  const roomId = room.mac
 
   const bulbTemplate = template.querySelector('.bulb-section').cloneNode(true)
   const errorContainer = bulbTemplate.querySelector('.error')
@@ -206,12 +210,8 @@ function getRoomHTML (room) {
   const bulbSwitch = bulbTemplate.querySelector('.bulb-switch > input')
 
   if (room.name) {
-    const bulbNameInput = document.createElement('input')
-    bulbNameInput.className = 'bulb-name'
+    const bulbNameInput = bulbTemplate.querySelector('.bulb-name')
     bulbNameInput.value = room.name
-
-    const bulbContainer = bulbTemplate.querySelector('.bulb-container')
-    bulbContainer.appendChild(bulbNameInput)
 
     async function handleNameChange () {
       const newName = bulbNameInput.value
@@ -224,7 +224,6 @@ function getRoomHTML (room) {
     }
 
     bulbNameInput.addEventListener('blur', handleNameChange)
-
     bulbNameInput.addEventListener('keydown', function (event) {
       if (event.key === 'Enter') {
         bulbNameInput.blur()
@@ -238,23 +237,21 @@ function getRoomHTML (room) {
       tab.parentNode.removeChild(tab)
     })
     bulbTemplate.querySelector('.dimming').remove()
-    bulbTemplate.querySelector('.save-status').remove()
+    bulbTemplate.querySelector('.save-status-button').remove()
     bulbTemplate.querySelector('.bulb-switch').remove()
     bulbTemplate.querySelector('.mode-selector').remove()
     bulbTemplate.style.justifyContent = ''
     const noBulbMessage = document.createElement('p')
     noBulbMessage.innerHTML = "This room doesn't have any bulbs"
-    bulbTemplate.appendChild(noBulbMessage)
+    bulbTemplate.insertBefore(noBulbMessage, bulbTemplate.querySelector('.floating-buttons'))
 
-    const addBulbsButton = document.createElement('button')
-    addBulbsButton.textContent = 'Add bulb'
+    const addBulbsButton = bulbTemplate.querySelector('.add-bulb-button')
     addBulbsButton.addEventListener('click', async (e) => {
       document.getElementById('myModal').style.display = 'block'
       populateList({
         allItems: storedBulbs.filter(bulb => !bulb.bulbs)
       })
     })
-    bulbTemplate.appendChild(addBulbsButton)
   } else {
     const roomBulbs = storedBulbs.filter(obj => room.bulbs.includes(obj.mac))
 
@@ -340,8 +337,6 @@ function getRoomHTML (room) {
     tempPicker.addEventListener('change', async (event) => {
       const promises = roomBulbs.map(bulb => window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value))
       await Promise.allSettled(promises)
-
-      // if (!response.result.success) return updateError('There was an error updating the bulb.')
       bulbSwitch.checked = true
     })
 
@@ -349,27 +344,23 @@ function getRoomHTML (room) {
       const rgbColor = hexaToRGB(event.target.value)
       const promises = roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value))
       await Promise.allSettled(promises)
-      // if (!response.result.success) return updateError('There was an error updating the bulb.')
       bulbSwitch.checked = true
     })
 
     sceneSelector.addEventListener('change', async (event) => {
       const promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value))
       await Promise.allSettled(promises)
-      // if (!response.result.success) return updateError('There was an error updating the bulb.')
       bulbSwitch.checked = true
     })
 
     sceneSpeedRange.addEventListener('change', async (event) => {
       const promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value))
       await Promise.allSettled(promises)
-      // if (!response.result.success) return updateError('There was an error updating the bulb.')
       bulbSwitch.checked = true
     })
 
     dimmingRange.addEventListener('change', async (event) => {
       const selectedMode = modeSelector.querySelector(`input[name="mode${roomId}"]:checked`).value
-      let response
       let promises
       switch (selectedMode) {
         case 'color':
@@ -383,12 +374,10 @@ function getRoomHTML (room) {
           break
       }
       await Promise.allSettled(promises)
-      if (!response.result.success) return updateError('There was an error updating the bulb.')
       bulbSwitch.checked = true
     })
 
-    const addBulbsButton = document.createElement('button')
-    addBulbsButton.textContent = 'Add bulb'
+    const addBulbsButton = bulbTemplate.querySelector('.add-bulb-button')
     addBulbsButton.addEventListener('click', async (e) => {
       document.getElementById('myModal').style.display = 'block'
       populateList({
@@ -396,8 +385,17 @@ function getRoomHTML (room) {
         selectedItemsMac: room.bulbs
       })
     })
-    bulbTemplate.appendChild(addBulbsButton)
   }
+
+  const deleteRoomButton = bulbTemplate.querySelector('.delete-room-button')
+  deleteRoomButton.addEventListener('click', () => {
+    event.stopPropagation()
+    const isConfirmed = confirm(`Are you sure you want to delete the room "${room.name || 'New Room'}"?`)
+    if (isConfirmed) {
+      window.dataProcessing.removeStoredBulbs(room.mac)
+      location.reload()
+    }
+  })
 
   document.getElementById('confirmBtn').addEventListener('click', async function () {
     const selectedValues = []
@@ -407,7 +405,7 @@ function getRoomHTML (room) {
 
     room.bulbs = selectedValues
     await window.dataProcessing.addOrEditStoredBulbs(room)
-    document.getElementById('myModal').style.display = 'none'
+    location.reload()
   })
 
   return bulbTemplate
@@ -436,11 +434,11 @@ function getBulbHTML (bulb) {
   const dimmingRange = bulbTemplate.querySelector('.dimming-range')
   dimmingRange.value = bulb.result.dimming
 
-  const saveStatusButton = bulbTemplate.querySelector('.save-status')
+  const saveStatusButton = bulbTemplate.querySelector('.floating-buttons .save-status-button')
   saveStatusButton.addEventListener('click', async () => {
     let properties = {
       state: bulbSwitch.checked,
-      dimming: dimmingRange.value
+      dimming: parseInt(dimmingRange.value)
     }
     const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
     if (selectedMode === 'temp') {
@@ -450,21 +448,24 @@ function getBulbHTML (bulb) {
         ...properties,
         ...hexaToRGB(colorPicker.value)
       }
+    } else {
+      properties = {
+        ...properties,
+        sceneId: sceneSelector.value,
+        speed: sceneSpeedRange.value
+      }
     }
-
     openModal(JSON.stringify({
       ...properties,
-      ...bulb
+      ip: bulb.ip
     }))
   })
 
-  const bulbContainer = bulbTemplate.querySelector('.bulb-container')
-  bulbContainer.innerHTML = `<img class="bulb" id="${bulbId}" src="../public/bulb.svg" alt="Bulb">`
+  // const bulbContainer = bulbTemplate.querySelector('.bulb-container')
+  // bulbContainer.innerHTML = `<img class="bulb" id="${bulbId}" src="../public/bulb.svg" alt="Bulb">`
   if (bulb.name) {
-    const bulbNameInput = document.createElement('input')
-    bulbNameInput.className = 'bulb-name'
+    const bulbNameInput = bulbTemplate.querySelector('.bulb-name')
     bulbNameInput.value = bulb.name
-    bulbContainer.appendChild(bulbNameInput)
 
     async function handleNameChange () {
       const newName = bulbNameInput.value
@@ -484,18 +485,20 @@ function getBulbHTML (bulb) {
     })
   }
 
-  updateBulb({
-    container: bulbContainer,
-    bulbId,
-    colorTemp: parseInt(bulb.result.temp),
-    color: {
-      r: bulb.result.r,
-      g: bulb.result.g,
-      b: bulb.result.b
-    },
-    sceneId: bulb.result.sceneId,
-    opacity: bulb.result.dimming
-  })
+  bulbTemplate.querySelector('.floating-buttons .add-bulb-button').remove()
+  bulbTemplate.querySelector('.floating-buttons .delete-room-button').remove()
+  // updateBulb({
+  //   container: bulbContainer,
+  //   bulbId,
+  //   colorTemp: parseInt(bulb.result.temp),
+  //   color: {
+  //     r: bulb.result.r,
+  //     g: bulb.result.g,
+  //     b: bulb.result.b
+  //   },
+  //   sceneId: bulb.result.sceneId,
+  //   opacity: bulb.result.dimming
+  // })
 
   const colorInput = document.createElement('input')
   colorInput.type = 'radio'
@@ -551,8 +554,24 @@ function getBulbHTML (bulb) {
 
   bulbSwitch.addEventListener('change', async (event) => {
     const isBulbOn = !event.target.checked
-    const response = await window.bulbNetworking.setBulb(bulb.ip, !isBulbOn)
-    if (!response.result.success) return updateError('There was an error updating the bulb.')
+    let response
+    if (isBulbOn) {
+      response = await window.bulbNetworking.setBulb(bulb.ip, !isBulbOn)
+    } else {
+      const selectedMode = modeSelector.querySelector(`input[name="mode${bulb.result.mac}"]:checked`).value
+      switch (selectedMode) {
+        case 'color':
+          response = await window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), dimmingRange.value)
+          break
+        case 'temp':
+          response = await window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, dimmingRange.value)
+          break
+        case 'scene':
+          response = await window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, dimmingRange.value)
+          break
+      }
+    }
+    // if (!response.result.success) return updateError('There was an error updating the bulb.')
     event.target.innerHTML = !isBulbOn
   })
 
@@ -575,7 +594,7 @@ function getBulbHTML (bulb) {
 
   tempPicker.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value)
-    updateBulb({ container: bulbContainer, bulbId, colorTemp: parseInt(event.target.value), opacity: dimmingRange.value })
+    // updateBulb({ container: bulbContainer, bulbId, colorTemp: parseInt(event.target.value), opacity: dimmingRange.value })
     if (!response.result.success) return updateError('There was an error updating the bulb.')
     bulbSwitch.checked = true
   })
@@ -583,7 +602,7 @@ function getBulbHTML (bulb) {
   colorPicker.addEventListener('input', async (event) => {
     const rgbColor = hexaToRGB(event.target.value)
     const response = await window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value)
-    updateBulb({ container: bulbContainer, bulbId, color: { r: rgbColor.r, g: rgbColor.g, b: rgbColor.b }, opacity: dimmingRange.value })
+    // updateBulb({ container: bulbContainer, bulbId, color: { r: rgbColor.r, g: rgbColor.g, b: rgbColor.b }, opacity: dimmingRange.value })
     if (!response.result.success) return updateError('There was an error updating the bulb.')
     bulbSwitch.checked = true
   })
@@ -591,7 +610,7 @@ function getBulbHTML (bulb) {
   sceneSelector.addEventListener('change', async (event) => {
     const response = await window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value)
     if (!response.result.success) return updateError('There was an error updating the bulb.')
-    updateBulb({ container: bulbContainer, bulbId, sceneId: event.target.value, opacity: dimmingRange.value })
+    // updateBulb({ container: bulbContainer, bulbId, sceneId: event.target.value, opacity: dimmingRange.value })
     bulbSwitch.checked = true
   })
 
@@ -616,15 +635,15 @@ function getBulbHTML (bulb) {
         break
     }
     if (!response.result.success) return updateError('There was an error updating the bulb.')
-    const updateBulbProps = { container: bulbContainer, bulbId, opacity: event.target.value }
-    if (selectedMode === 'temp') {
-      updateBulbProps.colorTemp = parseInt(tempPicker.value)
-    } else if (selectedMode === 'color') {
-      updateBulbProps.color = hexaToRGB(colorPicker.value)
-    } else if (selectedMode === 'scene') {
-      updateBulbProps.sceneId = sceneSelector.value
-    }
-    updateBulb(updateBulbProps)
+    // const updateBulbProps = { container: bulbContainer, bulbId, opacity: event.target.value }
+    // if (selectedMode === 'temp') {
+    //   updateBulbProps.colorTemp = parseInt(tempPicker.value)
+    // } else if (selectedMode === 'color') {
+    //   updateBulbProps.color = hexaToRGB(colorPicker.value)
+    // } else if (selectedMode === 'scene') {
+    //   updateBulbProps.sceneId = sceneSelector.value
+    // }
+    // updateBulb(updateBulbProps)
     bulbSwitch.checked = true
   })
 

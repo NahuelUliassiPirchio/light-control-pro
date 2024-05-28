@@ -45,6 +45,27 @@ async function handleAddOrUpdateStoredBulb (_event, data, filePath) {
   console.log('Setting updated in', filePath)
 }
 
+async function handleRemoveStoredBulb (_event, mac, filePath) {
+  const fileExists = fs.existsSync(filePath)
+  if (!fileExists) {
+    console.log('File does not exist:', filePath)
+    return
+  }
+
+  const fileContent = fs.readFileSync(filePath, 'utf-8')
+  const existingData = JSON.parse(fileContent)
+
+  const settingIndex = existingData.findIndex(item => item.mac === mac)
+
+  if (settingIndex !== -1) {
+    existingData.splice(settingIndex, 1)
+    fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf-8')
+    console.log('Bulb removed from', filePath)
+  } else {
+    console.log('No bulb with the given MAC address found.')
+  }
+}
+
 async function handleAddData (_event, data, filePath) {
   const fileExists = fs.existsSync(filePath)
   let existingData = []
@@ -115,5 +136,6 @@ module.exports = {
   handleRemoveData,
   handleGetData,
   handleAddOrUpdateSetting,
-  handleAddOrUpdateStoredBulb
+  handleAddOrUpdateStoredBulb,
+  handleRemoveStoredBulb
 }

@@ -32,28 +32,28 @@ async function sendCommandToBulb (ip, message) {
   })
 }
 
-exports.handleChangeColor = async (event, ip, { r, g, b }, dimming) => {
+async function handleChangeColor (event, ip, { r, g, b }, dimming) {
   const message = `{"id":1,"method":"setPilot","params":{"r":${r},"g":${g},"b":${b},"dimming": ${dimming}}}`
   const response = await sendCommandToBulb(ip, message)
   console.log(response)
   return JSON.parse(response)
 }
 
-exports.handleSetTemp = async (event, ip, temp, dimming) => {
+async function handleSetTemp (event, ip, temp, dimming) {
   const message = `{"id":1,"method":"setPilot","params":{"temp":${temp},"dimming": ${dimming}}}`
   const response = await sendCommandToBulb(ip, message)
   console.log(response)
   return JSON.parse(response)
 }
 
-exports.handleSetScene = async (event, ip, sceneId, sceneSpeed, dimming) => {
+async function handleSetScene (event, ip, sceneId, sceneSpeed, dimming) {
   const message = `{"id":1,"method":"setPilot","params":{"sceneId":${sceneId},"speed": ${sceneSpeed},"dimming": ${dimming}}}`
   const response = await sendCommandToBulb(ip, message)
   console.log(response)
   return JSON.parse(response)
 }
 
-exports.handleSetBulb = async (event, ip, state) => {
+async function handleSetBulb (event, ip, state) {
   const message = `{"id":1,"method":"setState","params":{"state":${state}}}`
   try {
     const response = await sendCommandToBulb(ip, message)
@@ -97,7 +97,7 @@ function discoverBulbs (callback) {
   })
 }
 
-exports.handleGetBulbs = async (callback) => {
+async function handleGetBulbs (callback) {
   try {
     const bulbs = await discoverBulbs(callback)
     console.log(`Bombillas descubiertas: ${bulbs.length}`)
@@ -108,13 +108,14 @@ exports.handleGetBulbs = async (callback) => {
   }
 }
 
-exports.handleGetBulbState = async (event, ip) => {
+async function handleGetBulbState (event, ip) {
   const message = '{"method":"getPilot","params":{}}'
   const response = await sendCommandToBulb(ip, message)
   return JSON.parse(response)
 }
 
-exports.handleSetBulbStatus = async (_event, ip, commandParams) => {
+async function handleSetBulbStatus (_event, ip, commandParams) {
+  console.log(commandParams)
   const params = {}
 
   if (commandParams.state !== undefined) {
@@ -125,17 +126,17 @@ exports.handleSetBulbStatus = async (_event, ip, commandParams) => {
     params.dimming = commandParams.dimming
   }
 
-  if (commandParams.color) {
-    params.r = commandParams.color.r
-    params.g = commandParams.color.g
-    params.b = commandParams.color.b
+  if (commandParams.r) {
+    params.r = commandParams.r
+    params.g = commandParams.g
+    params.b = commandParams.b
   }
 
   if (commandParams.temp !== undefined) {
     params.temp = commandParams.temp
   }
 
-  if (commandParams.sceneId !== undefined) {
+  if (commandParams.sceneId !== 0) {
     params.sceneId = commandParams.sceneId
     if (commandParams.sceneSpeed !== undefined) {
       params.speed = commandParams.sceneSpeed
@@ -156,4 +157,14 @@ exports.handleSetBulbStatus = async (_event, ip, commandParams) => {
     console.error('Error al enviar el comando a la bombilla:', error)
     throw error
   }
+}
+
+module.exports = {
+  handleSetBulbStatus,
+  handleGetBulbState,
+  handleGetBulbs,
+  handleSetBulb,
+  handleSetTemp,
+  handleChangeColor,
+  handleSetScene
 }

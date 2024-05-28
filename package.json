@@ -15,10 +15,68 @@
   "license": "ISC",
   "build": {
     "appId": "nahueluliassipirchio.light.control.pro",
+    "productName": "Light Control Pro",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "app/**/*",
+      "main.js",
+      "bulbController.js",
+      "dataController.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "path/to/extra/files",
+        "to": "resources",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "build/icons/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "This app requires access to the microphone."
+      }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "icon": "build/icons/icon.ico",
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
     "linux": {
       "category": "Utility",
-      "target": "AppImage",
-      "icon": "build/icons/"
+      "icon": "build/icons",
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ]
     }
   },
   "devDependencies": {
@@ -39,6 +97,7 @@
     "eslint-plugin-promise": "^6.1.1"
   },
   "dependencies": {
+    "auto-launch": "^5.0.6",
     "electron-squirrel-startup": "^1.0.0",
     "uuid": "^9.0.1"
   }

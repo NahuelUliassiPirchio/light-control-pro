@@ -25,5 +25,6 @@ contextBridge.exposeInMainWorld('dataProcessing', {
   addOrEditSetting: (id, data) => ipcRenderer.invoke('addOrEditSetting', id, data),
 
   getStoredBulbs: () => ipcRenderer.invoke('getStoredBulbs'),
-  addOrEditStoredBulbs: (data) => ipcRenderer.invoke('addOrEditStoredBulbs', data)
+  addOrEditStoredBulbs: (data) => ipcRenderer.invoke('addOrEditStoredBulbs', data),
+  removeStoredBulbs: (mac) => ipcRenderer.invoke('removeStoredBulbs', mac)
 })

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'nonce-abcdefg';"
     />
     <meta
       http-equiv="X-Content-Security-Policy"
@@ -15,43 +15,42 @@
     <script defer src="./renderer.js"></script>
   </head>
   <body>
-    <button id="reload-button">Reload</button>
-    <button id="add-room-button">+ Add new room</button>
     <div id="save-status-modal">
-      <span>&times;</span>
-      <h2>Enter status name</h2>
-      <input type="text" id="nameInput">
-      <br><br>
-      <input type="hidden" id="hiddenInput" value="">
-      <button>Save</button>
+        <span>&times;</span>
+        <h2>Enter status name</h2>
+        <input type="text" id="nameInput">
+        <br><br>
+        <input type="hidden" id="hiddenInput" value="">
+        <button>Save</button>
     </div>
     <div id="myModal" class="modal">
-      <div class="modal-content">
-        <ul id="valuesList"></ul>
-        <button id="confirmBtn">Confirm</button>
-        <button id="cancelBtn">Cancel</button>
-      </div>
+        <div class="modal-content">
+            <ul id="valuesList"></ul>
+            <button id="confirmBtn">Confirm</button>
+            <button id="cancelBtn">Cancel</button>
+        </div>
     </div>
-    <div id="fav-status">
+    <div class="fav-status-container">
+      <h2 class="title" id="save-status-button">Saved status</h1>
+      <div id="fav-status"></div>
     </div>
     <template id="bulb-template">
-      <li class="bulb-section">
-        <h4 class="error"></h4>
-        <div class="bulb-header">
-          <div class="bulb-container">
+        <li class="bulb-section">
+          <h4 class="error"></h4>
+          <div class="bulb-header">
+            <input class="bulb-name"></input>
+            <label class="bulb-switch">
+                <input type="checkbox">
+                <span class="slider round"></span>
+            </label>
           </div>
-          <label class="bulb-switch">
-            <input type="checkbox">
-            <span class="slider round"></span>
-          </label>
-        </div>
-        <div class="dimming">
-          <input type="range" class="dimming-range" name="dimming" min="10" max="100" />
-          <img class="icon" src="../public/brightness.svg" alt="dimming icon">
-        </div>
-        <input id="color" class="color-picker tab-content" type="color" value="#ffffff"/>
-        <input id="temp" class="temp-picker tab-content" type="range" min="2200" max="6200">
-        <div id="scene" class="tab-content">
+          <div class="dimming">
+              <input type="range" class="dimming-range" name="dimming" min="10" max="100" />
+              <img class="icon" src="../public/brightness.svg" alt="dimming icon">
+          </div>
+          <input id="color" class="color-picker tab-content" type="color" value="#ffffff" />
+          <input id="temp" class="temp-picker tab-content" type="range" min="2200" max="6200">
+          <div id="scene" class="tab-content">
           <select id="scene-selector">
             <option class="red" value="0" selected="" disabled="">Select an option</option>
             <option value="0" disabled="">---Static Scenes---</option>  
@@ -92,18 +91,36 @@
             <option value="1000">Rhythm</option>
           </select>
           <div class="speed-container">
-            <img src="../public/tortoise.svg" alt="low speed icon"/>
-            <input type="range" class="speed-range" name="speed" min="10" max="200" />
-            <img src="../public/rabbit.svg" alt="high speed icon"/>
+              <img src="../public/tortoise.svg" alt="low speed icon" />
+              <input type="range" class="speed-range" name="speed" min="10" max="200" />
+              <img src="../public/rabbit.svg" alt="high speed icon" />
           </div>
         </div>
-        <fieldset class="mode-selector">
-        </fieldset>
-        <button class="save-status">
-          save status
-        </button>
+        <fieldset class="mode-selector"></fieldset>
+        <div class="floating-buttons">
+          <button class="delete-room-button" title="Delete this room">
+            <img src="../public/delete-icon.svg" alt="Delete room" />
+          </button>
+          <button class="add-bulb-button" title="Add a bulb to this room">
+            <img src="../public/bulb.svg" alt="Add bulb" />
+            <span class="plus-sign">+</span>
+          </button>
+          <button class="save-status-button" title="Save the current state of the bulb/room">
+            <img src="../public/save-icon.svg" alt="Save status" />
+          </button>
+        </div>
       </li>
     </template>
+    <div class="main-header">
+      <h2 class="title">Bulbs and rooms</h1>
+        <button id="add-room-button" title="Add a new room">
+          <img class="icon" src="../public/room.svg" alt="Add new room">
+          <span class="plus-sign">+</span>
+        </button>
+      </div>
+    <button id="reload-button" title="Reload">
+      <img class="icon" src="../public/reload.svg" alt="Reload">
+    </button>
     <ul id="bulbs-container"></ul>
   </body>
 </html>
