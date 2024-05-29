@@ -2,5 +2,4 @@
 /.vscode/
 *todo*
 out/
-dist
-build
+/dist/

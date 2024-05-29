@@ -6,7 +6,7 @@
   "scripts": {
     "start": "electron-forge start",
     "dev": "electron --enable-logging .",
-    "build": "electron-builder",
+    "build": "electron-builder --win --linux",
     "test": "echo \"Error: no test specified\" && exit 1",
     "package": "electron-forge package",
     "make": "electron-forge make"
@@ -24,7 +24,8 @@
       "main.js",
       "bulbController.js",
       "dataController.js",
-      "package.json"
+      "package.json",
+      "public"
     ],
     "extraResources": [
       {
@@ -60,10 +61,7 @@
     },
     "win": {
       "icon": "build/icons/icon.ico",
-      "target": [
-        "nsis",
-        "zip"
-      ]
+      "target": ["nsis", "zip"]
     },
     "nsis": {
       "oneClick": false,

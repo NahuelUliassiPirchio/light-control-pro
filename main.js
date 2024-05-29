@@ -25,17 +25,17 @@ let tray
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 800,
+    width: 600,
+    height: 600,
     webPreferences: {
       contextIsolation: true,
-      preload: path.join(__dirname, './app/preload.js')
+      preload: path.join(__dirname, 'app/preload.js')
     },
     hasShadow: false
   })
 
-  mainWindow.loadFile('./app/index.html')
-  mainWindow.webContents.openDevTools()
+  mainWindow.loadFile(path.join(__dirname, 'app/index.html'))
+  // mainWindow.webContents.openDevTools()
 
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
@@ -43,18 +43,23 @@ const createWindow = () => {
       mainWindow.hide()
     }
   })
+
+  const menu = Menu.buildFromTemplate(menuTemplate)
+  mainWindow.setMenu(menu)
 }
 
-const createShortcutWindow = () => {
+const createConfigWindow = () => {
   const window = new BrowserWindow({
     width: 600,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, './app/preload.js')
+      preload: path.join(__dirname, 'app/preload.js')
     }
   })
 
-  window.loadFile('./app/config.html')
+  window.setMenu(null)
+  // window.webContents.openDevTools()
+  window.loadFile(path.join(__dirname, 'app/config.html'))
 }
 
 const menuTemplate = [
@@ -63,38 +68,76 @@ const menuTemplate = [
     submenu: [
       {
         label: 'Shortcuts',
-        click: createShortcutWindow
+        click: createConfigWindow
       }
     ]
   }
 ]
 
+async function registerShortcuts (userDataFilePath) {
+  handleGetData('', path.join(userDataFilePath, 'shortcuts.json'))
+    .then(shortcuts => {
+      if (!shortcuts) return
+
+      return handleGetData('', path.join(userDataFilePath, 'status.json'))
+        .then(status => {
+          globalShortcut.unregisterAll()
+
+          shortcuts.forEach(shortcut => {
+            const shortcutStatus = status.filter(state => state.id === shortcut.statusId)[0]
+            if (!shortcutStatus || Object.values(shortcutStatus).length === 0) return
+
+            const shortcutAccelerator = shortcut.pressedKeys.map((key) => {
+              switch (key.toLowerCase()) {
+                case 'alt': return 'Alt'
+                case 'control': return 'CommandOrControl'
+                case 'shift': return 'Shift'
+                default: return key.charAt(0).toUpperCase() + key.slice(1)
+              }
+            }).join('+')
+
+            globalShortcut.register(shortcutAccelerator, () => {
+              handleSetBulbStatus('', shortcutStatus.ip, shortcutStatus)
+                .catch(error => console.error('Error setting bulb status:', error))
+            })
+          })
+        })
+        .catch(error => console.error('Error getting status data:', error))
+    })
+    .catch(error => console.error('Error getting shortcuts data:', error))
+}
+
 app.on('ready', () => {
-  // tray = new Tray(path.join(__dirname, './build/icons/icon.png'))
-  // const contextMenu = Menu.buildFromTemplate([
-  //   { label: 'Show App', click: () => { mainWindow.show() } },
-  //   { label: 'Quit', click: () => { app.isQuiting = true; app.quit() } }
-  // ])
-  // tray.setContextMenu(contextMenu)
-
-  // tray.on('click', () => {
-  //   mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show()
-  // })
-
   createWindow()
+  if (process.platform === 'darwin' || process.platform === 'win32') {
+    try {
+      const iconPath = path.join(__dirname, 'build/icons/icon.png')
+      tray = new Tray(iconPath)
 
-  const menu = Menu.buildFromTemplate(menuTemplate)
-  Menu.setApplicationMenu(menu)
+      const contextMenu = Menu.buildFromTemplate([
+        { label: 'Show App', click: () => { mainWindow.show() } },
+        { label: 'Quit', click: () => { app.isQuiting = true; app.quit() } }
+      ])
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+      tray.setToolTip('Light control pro app')
+      tray.setContextMenu(contextMenu)
+
+      tray.on('click', () => {
+        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show()
+      })
+    } catch (error) {
+      console.error('Error during app ready:', error)
     }
-  })
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+      }
+    })
+  }
 
   const logFilePath = path.join(app.getPath('userData'), 'app.log')
 
-  // Redirect console.log to a file
   const logStream = fs.createWriteStream(logFilePath, { flags: 'a' })
   const originalConsoleLog = console.log
   console.log = (...args) => {
@@ -102,22 +145,10 @@ app.on('ready', () => {
     originalConsoleLog(...args)
   }
 
-  // Determine the correct executable path based on the platform
   const exePath = app.isPackaged
     ? (process.env.APPIMAGE ? process.env.APPIMAGE : process.execPath)
     : app.getPath('exe')
 
-  console.log(`Executable path: ${exePath}`)
-
-  // Set login item settings for auto-launch on macOS and Windows
-  if (process.platform === 'darwin' || process.platform === 'win32') {
-    app.setLoginItemSettings({
-      openAtLogin: true,
-      path: exePath
-    })
-  }
-
-  // Programmatically create the .desktop file for Linux
   if (os.platform() === 'linux') {
     const desktopEntry = `[Desktop Entry]
 Type=Application
@@ -133,6 +164,7 @@ X-GNOME-Autostart-enabled=true`
     }
 
     fs.writeFileSync(desktopFilePath, desktopEntry)
+    fs.chmodSync(desktopFilePath, '755')
     console.log(`Created .desktop file at: ${desktopFilePath}`)
   }
 
@@ -143,43 +175,24 @@ X-GNOME-Autostart-enabled=true`
       if (settings) {
         settings.forEach((setting) => {
           if (setting.id === 'startup') {
-            app.setLoginItemSettings({
-              openAtLogin: setting.runOnStartup || false,
-              openAsHidden: setting.runOnStartup || false,
-              path: exePath
-            })
+            if (process.platform === 'darwin' || process.platform === 'win32') {
+              app.setLoginItemSettings({
+                openAsHidden: setting.runOnStartup || false,
+                openAtLogin: setting.runOnStartup || false,
+                path: exePath
+              })
+            }
           }
         })
       }
     })
 
-  handleGetData('', path.join(userDataFilePath, 'shortcuts.json'))
-    .then(async (shortcuts) => {
-      if (!shortcuts) return
-      const status = await handleGetData('', path.join(userDataFilePath, 'status.json'))
-      shortcuts.forEach(async (shortcut) => {
-        const shortcutStatus = status.filter(state => state.id === shortcut.statusId)[0]
-        if (Object.values(shortcutStatus).length === 0) return
-        const shortcutAccelerator = shortcut.pressedKeys.map((key) => {
-          switch (key.toLowerCase()) {
-            case 'alt': return 'Alt'
-            case 'control': return 'CommandOrControl'
-            case 'shift': return 'Shift'
-            default: return key.charAt(0).toUpperCase() + key.slice(1)
-          }
-        }).join('+')
-
-        globalShortcut.register(shortcutAccelerator, async () => {
-          // if(shortcutStatus.isToggle)
-          // const currentState = await handleGetBulbState('', shortcutStatus.ip)
-          // const newState = !currentState.result.state
-          // console.log('Enviado')
-          // await handleSetBulb('', shortcutStatus.ip, newState)
-
-          await handleSetBulbStatus('', shortcutStatus.ip, shortcutStatus.result)
-        })
-      })
-    })
+  registerShortcuts(userDataFilePath)
+  fs.watch(path.join(userDataFilePath, 'shortcuts.json'), (eventType, filename) => {
+    if (eventType === 'change') {
+      registerShortcuts(userDataFilePath)
+    }
+  })
 
   ipcMain.handle('setBulb', handleSetBulb)
   ipcMain.on('startDiscovery', () => {
