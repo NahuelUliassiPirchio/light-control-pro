@@ -149,50 +149,59 @@ app.on('ready', () => {
     ? (process.env.APPIMAGE ? process.env.APPIMAGE : process.execPath)
     : app.getPath('exe')
 
-  if (os.platform() === 'linux') {
-    const desktopEntry = `[Desktop Entry]
-Type=Application
-Name=Light Control Pro
-Exec=${exePath}
-X-GNOME-Autostart-enabled=true`
-
-    const autostartDir = path.join(os.homedir(), '.config', 'autostart')
-    const desktopFilePath = path.join(autostartDir, 'light-control-pro.desktop')
-
-    if (!fs.existsSync(autostartDir)) {
-      fs.mkdirSync(autostartDir, { recursive: true })
+  const startOnStartup = (value) => {
+    if (process.platform === 'darwin' || process.platform === 'win32') {
+      app.setLoginItemSettings({
+        openAsHidden: value,
+        openAtLogin: value,
+        path: exePath
+      })
     }
+    if (os.platform() === 'linux' && value) {
+      const desktopEntry = `[Desktop Entry]
+  Type=Application
+  Name=Light Control Pro
+  Exec=${exePath}
+  X-GNOME-Autostart-enabled=true`
 
-    fs.writeFileSync(desktopFilePath, desktopEntry)
-    fs.chmodSync(desktopFilePath, '755')
-    console.log(`Created .desktop file at: ${desktopFilePath}`)
+      const autostartDir = path.join(os.homedir(), '.config', 'autostart')
+      const desktopFilePath = path.join(autostartDir, 'light-control-pro.desktop')
+
+      if (!fs.existsSync(autostartDir)) {
+        fs.mkdirSync(autostartDir, { recursive: true })
+      }
+
+      fs.writeFileSync(desktopFilePath, desktopEntry)
+      fs.chmodSync(desktopFilePath, '755')
+      console.log(`Created .desktop file at: ${desktopFilePath}`)
+    }
   }
 
   const userDataFilePath = app.getPath('userData')
-
-  handleGetData('', path.join(userDataFilePath, 'settings.json'))
+  const settingsFilePath = path.join(userDataFilePath, 'settings.json')
+  handleGetData('', settingsFilePath)
     .then(async (settings) => {
-      if (settings) {
+      if (settings.length > 0) {
         settings.forEach((setting) => {
           if (setting.id === 'startup') {
-            if (process.platform === 'darwin' || process.platform === 'win32') {
-              app.setLoginItemSettings({
-                openAsHidden: setting.runOnStartup || false,
-                openAtLogin: setting.runOnStartup || false,
-                path: exePath
-              })
-            }
+            startOnStartup(setting.runOnStartup)
           }
         })
+      } else {
+        handleAddOrUpdateSetting(null, 'startup', { runOnStartup: true }, settingsFilePath)
+        startOnStartup(true)
       }
     })
 
   registerShortcuts(userDataFilePath)
-  fs.watch(path.join(userDataFilePath, 'shortcuts.json'), (eventType, filename) => {
-    if (eventType === 'change') {
-      registerShortcuts(userDataFilePath)
-    }
-  })
+  const shortcutsFilePath = path.join(userDataFilePath, 'shortcuts.json')
+  handleGetData(null, shortcutsFilePath).then(e =>
+    fs.watch(shortcutsFilePath, (eventType, filename) => {
+      if (eventType === 'change') {
+        registerShortcuts(userDataFilePath)
+      }
+    })
+  )
 
   ipcMain.handle('setBulb', handleSetBulb)
   ipcMain.on('startDiscovery', () => {

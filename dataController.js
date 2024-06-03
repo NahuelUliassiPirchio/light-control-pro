@@ -126,8 +126,19 @@ async function handleRemoveData (_event, id, filePath) {
 }
 
 async function handleGetData (_event, path) {
-  const data = fs.readFileSync(path)
-  return JSON.parse(data)
+  let data = []
+  try {
+    data = await fs.promises.readFile(path, 'utf-8')
+    data = JSON.parse(data)
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      await fs.promises.writeFile(path, JSON.stringify(data))
+    } else {
+      throw error
+    }
+  }
+
+  return data
 }
 
 module.exports = {
