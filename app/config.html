@@ -9,20 +9,29 @@
     <script defer src="./configRenderer.js"></script>
 </head>
 <body>
-    <h1>Configuration</h1>
-    <h2>Autostart</h2>
-    <p>Run application automatically when you start your device.</p>
-    <input id="runOnStartup" name="runOnStartup" type="checkbox">
-    <label for="runOnStartup">Run on startup</label>
-    <h2>Shortcut Creator</h2>
-    <p>Press the keys to assign a shortcut:</p>
-    <select name="states" id="statesList"></select>
-    <form id="shortcutForm">
-      <div id="editIndicator" style="display: none;"></div>
-        <button type="button" id="recordingButton">Record</button>
-    </form>
-    <div id="shortcutsContainer">
-        <h2>Existing Shortcuts</h2>
-    </div>
+    <h1 class="main-title">Configuration</h1>
+    <section class="config-section">
+        <h2 class="config-title">Autostart</h2>
+        <p class="comment-subtitle">Run application automatically when you start your device.</p>
+        <input id="runOnStartup" name="runOnStartup" type="checkbox">
+        <label for="runOnStartup">Run on startup</label>
+    </section>
+    <section class="config-section">
+        <h2 class="config-title">Shortcut Creator</h2>
+        <p class="comment-subtitle">Press the keys to assign a shortcut:</p>
+        <div class="recorder-container">
+            <select name="states" id="statesList"></select>
+            <form id="shortcutForm">
+            <div id="editIndicator" style="display: none;"></div>
+                <button type="button" id="recordingButton">Record</button>
+            </form>
+        </div>
+        <div>
+            <h2 class="config-title">Existing Shortcuts</h2>
+            <ul id="shortcutsContainer">
+
+            </ul>
+        </div>
+    </section>
 </body>
 </html>

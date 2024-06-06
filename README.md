@@ -4,7 +4,7 @@ Welcome to Light Control Pro, a cutting-edge Electron application designed to pr
 
 ## Release Information
 
-**Version:** 1.0.0  
+**Version:** 1.0.2  
 **Release Date:** May 29, 2024
 
 ## Overview
@@ -24,7 +24,7 @@ Light Control Pro offers a comprehensive suite of features aimed at enhancing yo
 
 ### Windows
 
-1. Download the `Light Control Pro-1.0.0-Setup.exe` file.
+1. Download the `Light Control Pro-1.0.2-Setup.exe` file.
 2. Run the installer and follow the on-screen instructions.
 3. Launch the application from the Start Menu.
 
@@ -32,12 +32,12 @@ Light Control Pro offers a comprehensive suite of features aimed at enhancing yo
 
 1. Download the appropriate package for your distribution (`.AppImage`, `.deb`, `.rpm`).
 2. **For `.AppImage`:**
-   - Make the file executable: `chmod +x Light-Control-Pro-1.0.0.AppImage`
-   - Run the file: `./Light-Control-Pro-1.0.0.AppImage`
+   - Make the file executable: `chmod +x Light-Control-Pro-1.0.2.AppImage`
+   - Run the file: `./Light-Control-Pro-1.0.2.AppImage`
 3. **For `.deb` (Debian-based systems):**
-   - Install the package: `sudo dpkg -i light-control-pro_1.0.0_amd64.deb`
+   - Install the package: `sudo dpkg -i light-control-pro_1.0.2_amd64.deb`
 4. **For `.rpm` (Red Hat-based systems):**
-   - Install the package: `sudo rpm -i light-control-pro-1.0.0.x86_64.rpm`
+   - Install the package: `sudo rpm -i light-control-pro-1.0.2.x86_64.rpm`
 
 ## Changelog
 
