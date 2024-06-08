@@ -3,7 +3,6 @@ const reloadButton = document.getElementById('reload-button')
 const addRoomButton = document.getElementById('add-room-button')
 const bulbsContainer = document.getElementById('bulbs-container')
 
-document.getElementsByTagName('body')[0].addEventListener('click', e => console.log(window.dataProcessing))
 document.getElementById('cancelBtn').addEventListener('click', function () {
   document.getElementById('myModal').style.display = 'none'
 })
@@ -282,23 +281,24 @@ function getEntityHTML (entity, type) {
 
     bulbSwitch.addEventListener('change', async (event) => {
       const isBulbOn = !event.target.checked
-
+      let promises
       if (isBulbOn) {
-        await window.bulbNetworking.setBulb(entity.ip, !isBulbOn)
+        promises = roomBulbs.map(bulb => window.bulbNetworking.setBulb(bulb.ip, !isBulbOn))
       } else {
         const selectedMode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`).value
         switch (selectedMode) {
           case 'color':
-            await window.bulbNetworking.changeColor(entity.ip, hexaToRGB(colorPicker.value), dimmingRange.value)
+            promises = roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), dimmingRange.value))
             break
           case 'temp':
-            await window.bulbNetworking.setTemp(entity.ip, tempPicker.value, dimmingRange.value)
+            promises = roomBulbs.map(bulb => window.bulbNetworking.setTemp(bulb.ip, tempPicker.value, dimmingRange.value))
             break
           case 'scene':
-            await window.bulbNetworking.setScene(entity.ip, sceneSelector.value, sceneSpeedRange.value, dimmingRange.value)
+            promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, dimmingRange.value))
             break
         }
       }
+      await Promise.allSettled(promises)
 
       event.target.innerHTML = !isBulbOn
     })
@@ -387,28 +387,29 @@ function getEntityHTML (entity, type) {
           selectedItemsMac: entity.bulbs
         })
       })
-
-      const deleteRoomButton = bulbTemplate.querySelector('.delete-room-button')
-      deleteRoomButton.addEventListener('click', () => {
-        event.stopPropagation()
-        const isConfirmed = confirm(`Are you sure you want to delete the room "${entity.name || 'New Room'}"?`)
-        if (isConfirmed) {
-          window.dataProcessing.removeStoredBulbs(entity.mac)
-          location.reload()
-        }
-      })
-
-      document.getElementById('confirmBtn').addEventListener('click', async function () {
-        const selectedValues = []
-        document.querySelectorAll('#valuesList input[type="checkbox"]:checked').forEach(checkbox => {
-          selectedValues.push(checkbox.getAttribute('mac'))
-        })
-
-        entity.bulbs = selectedValues
-        await window.dataProcessing.addOrEditStoredBulbs(entity)
-        location.reload()
-      })
     }
+  }
+  if (isRoom) {
+    const deleteRoomButton = bulbTemplate.querySelector('.delete-room-button')
+    deleteRoomButton.addEventListener('click', () => {
+      event.stopPropagation()
+      const isConfirmed = confirm(`Are you sure you want to delete the room "${entity.name || 'New Room'}"?`)
+      if (isConfirmed) {
+        window.dataProcessing.removeStoredBulbs(entity.mac)
+        location.reload()
+      }
+    })
+
+    document.getElementById('confirmBtn').addEventListener('click', async function () {
+      const selectedValues = []
+      document.querySelectorAll('#valuesList input[type="checkbox"]:checked').forEach(checkbox => {
+        selectedValues.push(checkbox.getAttribute('mac'))
+      })
+
+      entity.bulbs = selectedValues
+      await window.dataProcessing.addOrEditStoredBulbs(entity)
+      location.reload()
+    })
   }
 
   return bulbTemplate

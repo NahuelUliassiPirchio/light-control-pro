@@ -22,11 +22,13 @@ const {
 
 let mainWindow
 let tray
+const iconPath = path.join(__dirname, 'build/icons/icon.png')
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 600,
     height: 600,
+    icon: iconPath,
     webPreferences: {
       contextIsolation: true,
       preload: path.join(__dirname, 'app/preload.js')
@@ -52,6 +54,7 @@ const createConfigWindow = () => {
   const window = new BrowserWindow({
     width: 600,
     height: 600,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'app/preload.js')
     }
@@ -111,7 +114,6 @@ app.on('ready', () => {
   createWindow()
   if (process.platform === 'darwin' || process.platform === 'win32') {
     try {
-      const iconPath = path.join(__dirname, 'build/icons/icon.png')
       tray = new Tray(iconPath)
 
       const contextMenu = Menu.buildFromTemplate([

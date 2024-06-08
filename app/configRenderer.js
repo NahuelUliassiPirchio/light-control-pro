@@ -39,6 +39,7 @@ runOnStartupCheckbox.addEventListener('change', async (e) => {
 
 async function loadShortcuts () {
   const shortcuts = await window.dataProcessing.getShortcuts()
+  shortcutsContainer.innerHTML = ''
   shortcuts.forEach(shortcut => {
     const statusName = getStateNameById(shortcut.statusId)
     const shortcutDisplay = document.createElement('li')
