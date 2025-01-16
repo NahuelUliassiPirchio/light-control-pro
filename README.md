@@ -11,6 +11,8 @@ Welcome to Light Control Pro, a cutting-edge Electron application designed to pr
 
 Light Control Pro offers a comprehensive suite of features aimed at enhancing your smart home experience, allowing you to control and customize your smart lighting setup with ease.
 
+**⚠️Note**: The application has only been tested with WIZ smart bulbs. Compatibility with other smart bulb brands is not guaranteed.
+
 ## Key Features
 
 - **Intuitive Interface:** A user-friendly interface that allows you to easily control and customize your smart lighting setup.
