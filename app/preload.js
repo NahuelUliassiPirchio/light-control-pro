@@ -1,5 +1,10 @@
 'use strict'
 const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('updateUi', {
+  onUpdatedBulbs: (callback) => ipcRenderer.on('updatedBulbs', (_event, value) => callback(value))
+})
+
 contextBridge.exposeInMainWorld('bulbNetworking', {
   setBulb: (ip, state) => ipcRenderer.invoke('setBulb', ip, state),
   setStatus: (ip, status) => ipcRenderer.invoke('setStatus', ip, status),

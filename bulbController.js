@@ -114,7 +114,7 @@ async function handleGetBulbState (event, ip) {
   return JSON.parse(response)
 }
 
-async function handleSetBulbStatus (_event, ip, commandParams) {
+async function handleSetBulbStatus (mainWindow, _event, ip, commandParams) {
   console.log(commandParams)
   const params = {}
 
@@ -151,6 +151,7 @@ async function handleSetBulbStatus (_event, ip, commandParams) {
   const messageString = JSON.stringify(message)
   try {
     const response = await sendCommandToBulb(ip, messageString)
+    mainWindow.webContents.send('updatedBulbs', true)
     console.log('Respuesta del comando enviado:', response)
     return JSON.parse(response)
   } catch (error) {

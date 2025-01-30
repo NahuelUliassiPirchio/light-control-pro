@@ -100,7 +100,7 @@ async function registerShortcuts (userDataFilePath) {
             }).join('+')
 
             globalShortcut.register(shortcutAccelerator, () => {
-              handleSetBulbStatus('', shortcutStatus.ip, shortcutStatus)
+              handleSetBulbStatus(mainWindow, '', shortcutStatus.ip, shortcutStatus)
                 .catch(error => console.error('Error setting bulb status:', error))
             })
           })
@@ -212,7 +212,7 @@ app.on('ready', () => {
   ipcMain.handle('changeColor', handleChangeColor)
   ipcMain.handle('setTemp', handleSetTemp)
   ipcMain.handle('setScene', handleSetScene)
-  ipcMain.handle('setStatus', handleSetBulbStatus)
+  ipcMain.handle('setStatus', (_event, ip, commandParams) => handleSetBulbStatus(mainWindow, _event, ip, commandParams))
 
   ipcMain.handle('addStatus', (event, data) => handleAddData(event, data, path.join(userDataFilePath, 'status.json')))
   ipcMain.handle('getStatus', (event, ..._args) => handleGetData(event, path.join(userDataFilePath, 'status.json')))

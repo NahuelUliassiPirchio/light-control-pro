@@ -3,6 +3,8 @@ const reloadButton = document.getElementById('reload-button')
 const addRoomButton = document.getElementById('add-room-button')
 const bulbsContainer = document.getElementById('bulbs-container')
 
+window.updateUi.onUpdatedBulbs(() => location.reload())
+
 document.getElementById('cancelBtn').addEventListener('click', function () {
   document.getElementById('myModal').style.display = 'none'
 })
