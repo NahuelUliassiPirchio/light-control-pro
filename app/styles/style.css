@@ -503,10 +503,10 @@ input:checked + .slider:before {
   gap: 16px;
 }
 .recorder-container button{
-  background-color: #0CB1F9;
+  background-color: #e0d7f5;
   border: 1px #1c2d35 solid;
   border-radius: 5px;
-  color: #5f0b0b;
+  color: #473232;
   padding: 8px;
 }
 #shortcutsContainer{

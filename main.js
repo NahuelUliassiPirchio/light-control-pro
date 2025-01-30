@@ -21,6 +21,7 @@ const {
 } = require('./dataController.js')
 
 let mainWindow
+let configWindow
 let tray
 const iconPath = path.join(__dirname, 'build/icons/icon.png')
 
@@ -51,7 +52,12 @@ const createWindow = () => {
 }
 
 const createConfigWindow = () => {
-  const window = new BrowserWindow({
+  if (configWindow && !configWindow.isDestroyed()){
+    configWindow.focus()
+    return
+  }
+
+  configWindow = new BrowserWindow({
     width: 600,
     height: 600,
     icon: iconPath,
@@ -60,14 +66,14 @@ const createConfigWindow = () => {
     }
   })
 
-  window.setMenu(null)
-  // window.webContents.openDevTools()
-  window.loadFile(path.join(__dirname, 'app/config.html'))
+  configWindow.setMenu(null)
+  configWindow.webContents.openDevTools()
+  configWindow.loadFile(path.join(__dirname, 'app/config.html'))
 }
 
 const menuTemplate = [
   {
-    label: 'Configuration',
+    label: 'Settings',
     submenu: [
       {
         label: 'Shortcuts',

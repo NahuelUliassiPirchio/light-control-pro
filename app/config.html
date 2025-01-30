@@ -20,10 +20,12 @@
         <h2 class="config-title">Shortcut Creator</h2>
         <p class="comment-subtitle">Press the keys to assign a shortcut:</p>
         <div class="recorder-container">
-            <select name="states" id="statesList"></select>
+            <select name="states" id="statesList">
+                <option selected disabled>Select a saved status</option>
+            </select>
             <form id="shortcutForm">
             <div id="editIndicator" style="display: none;"></div>
-                <button type="button" id="recordingButton">Record</button>
+                <button type="button" id="recordingButton">+ Record</button>
             </form>
         </div>
         <div>

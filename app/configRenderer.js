@@ -40,20 +40,25 @@ runOnStartupCheckbox.addEventListener('change', async (e) => {
 async function loadShortcuts () {
   const shortcuts = await window.dataProcessing.getShortcuts()
   shortcutsContainer.innerHTML = ''
-  shortcuts.forEach(shortcut => {
-    const statusName = getStateNameById(shortcut.statusId)
-    const shortcutDisplay = document.createElement('li')
-    shortcutDisplay.innerHTML = `${statusName}: ${shortcut.pressedKeys.join('+')}`
-    const editBtn = document.createElement('button')
-    editBtn.innerHTML = '<img src="../public/edit.svg" alt="Edit shortcut">'
-    editBtn.onclick = () => startEditingShortcut(shortcut.id, shortcut.statusId)
-    const deleteBtn = document.createElement('button')
-    deleteBtn.innerHTML = '<img src="../public/delete.svg" alt="Delete shortcut">'
-    deleteBtn.onclick = () => deleteShortcut(shortcut.id)
-    shortcutDisplay.appendChild(editBtn)
-    shortcutDisplay.appendChild(deleteBtn)
-    shortcutsContainer.appendChild(shortcutDisplay)
-  })
+
+  if (shortcuts.length==0){
+    shortcutsContainer.innerHTML = 'No shortcuts at the moment'
+  }else{
+    shortcuts.forEach(shortcut => {
+      const statusName = getStateNameById(shortcut.statusId)
+      const shortcutDisplay = document.createElement('li')
+      shortcutDisplay.innerHTML = `${statusName}: ${shortcut.pressedKeys.join('+')}`
+      const editBtn = document.createElement('button')
+      editBtn.innerHTML = '<img src="../public/edit.svg" alt="Edit shortcut">'
+      editBtn.onclick = () => startEditingShortcut(shortcut.id, shortcut.statusId)
+      const deleteBtn = document.createElement('button')
+      deleteBtn.innerHTML = '<img src="../public/delete.svg" alt="Delete shortcut">'
+      deleteBtn.onclick = () => deleteShortcut(shortcut.id)
+      shortcutDisplay.appendChild(editBtn)
+      shortcutDisplay.appendChild(deleteBtn)
+      shortcutsContainer.appendChild(shortcutDisplay)
+    })
+  }
 }
 
 function getStateNameById (statusId) {
@@ -80,7 +85,7 @@ async function deleteShortcut (id) {
 
 async function toggleRecording () {
   isRecording = !isRecording
-  recButton.innerText = isRecording ? 'Stop Recording' : 'Record'
+  recButton.innerText = isRecording ? 'Stop Recording' : '+ Record'
 
   if (!isRecording) {
     document.removeEventListener('keydown', keyDown)
@@ -131,7 +136,7 @@ function keyUp (event) {
 
 function updateKeyInfo () {
   const keys = Object.keys(pressedKeys)
-  recButton.innerText = keys.length > 0 ? `${keys.join(' + ')}` : 'Record'
+  recButton.innerText = keys.length > 0 ? `${keys.join(' + ')}` : '+ Record'
 }
 
 recButton.addEventListener('click', toggleRecording)
