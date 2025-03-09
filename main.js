@@ -1,4 +1,12 @@
-const { app, BrowserWindow, Tray, Menu, ipcMain, globalShortcut } = require('electron')
+const {
+  app,
+  BrowserWindow,
+  Tray,
+  Menu,
+  ipcMain,
+  globalShortcut,
+  nativeImage
+} = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -23,7 +31,7 @@ const {
 let mainWindow
 let configWindow
 let tray
-const iconPath = path.join(__dirname, 'build/icons/icon.png')
+const iconPath = path.join(__dirname, './build/icons/icon.png')
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -52,7 +60,7 @@ const createWindow = () => {
 }
 
 const createConfigWindow = () => {
-  if (configWindow && !configWindow.isDestroyed()){
+  if (configWindow && !configWindow.isDestroyed()) {
     configWindow.focus()
     return
   }
@@ -67,7 +75,7 @@ const createConfigWindow = () => {
   })
 
   configWindow.setMenu(null)
-  configWindow.webContents.openDevTools()
+  // configWindow.webContents.openDevTools()
   configWindow.loadFile(path.join(__dirname, 'app/config.html'))
 }
 
@@ -83,17 +91,49 @@ const menuTemplate = [
   }
 ]
 
+const exePath = app.isPackaged
+  ? (process.env.APPIMAGE ? process.env.APPIMAGE : process.execPath)
+  : app.getPath('exe')
+
+function startOnStartup (value) {
+  if (process.platform === 'darwin' || process.platform === 'win32') {
+    app.setLoginItemSettings({
+      openAsHidden: value,
+      openAtLogin: value,
+      path: exePath
+    })
+  }
+  if (os.platform() === 'linux' && value) {
+    const desktopEntry = `[Desktop Entry]
+  Type=Application
+  Name=Light Control Pro
+  Exec=${exePath}
+  X-GNOME-Autostart-enabled=true`
+
+    const autostartDir = path.join(os.homedir(), '.config', 'autostart')
+    const desktopFilePath = path.join(autostartDir, 'light-control-pro.desktop')
+
+    if (!fs.existsSync(autostartDir)) {
+      fs.mkdirSync(autostartDir, { recursive: true })
+    }
+
+    fs.writeFileSync(desktopFilePath, desktopEntry)
+    fs.chmodSync(desktopFilePath, '755')
+    console.log(`Created .desktop file at: ${desktopFilePath}`)
+  }
+}
+
 async function registerShortcuts (userDataFilePath) {
   handleGetData('', path.join(userDataFilePath, 'shortcuts.json'))
     .then(shortcuts => {
       if (!shortcuts) return
 
       return handleGetData('', path.join(userDataFilePath, 'status.json'))
-        .then(status => {
+        .then(statuses => {
           globalShortcut.unregisterAll()
 
           shortcuts.forEach(shortcut => {
-            const shortcutStatus = status.filter(state => state.id === shortcut.statusId)[0]
+            const shortcutStatus = statuses.filter(state => state.id === shortcut.statusId)[0]
             if (!shortcutStatus || Object.values(shortcutStatus).length === 0) return
 
             const shortcutAccelerator = shortcut.pressedKeys.map((key) => {
@@ -116,23 +156,77 @@ async function registerShortcuts (userDataFilePath) {
     .catch(error => console.error('Error getting shortcuts data:', error))
 }
 
+const userDataFilePath = app.getPath('userData')
+const settingsFilePath = path.join(userDataFilePath, 'settings.json')
+handleGetData('', settingsFilePath)
+  .then(async (settings) => {
+    if (settings && settings.length > 0) {
+      const startupSetting = settings.find(setting => setting.id === 'startup')
+      if (startupSetting) {
+        startOnStartup(startupSetting.runOnStartup)
+      } else {
+        await handleAddOrUpdateSetting(null, 'startup', { runOnStartup: true }, settingsFilePath)
+        startOnStartup(true)
+      }
+    } else {
+      await handleAddOrUpdateSetting(null, 'startup', { runOnStartup: true }, settingsFilePath)
+      startOnStartup(true)
+    }
+  })
+
+registerShortcuts(userDataFilePath)
+const shortcutsFilePath = path.join(userDataFilePath, 'shortcuts.json')
+handleGetData(null, shortcutsFilePath).then(e =>
+  fs.watch(shortcutsFilePath, (eventType, filename) => {
+    if (eventType === 'change') {
+      registerShortcuts(userDataFilePath)
+    }
+  })
+)
+
+Menu.setApplicationMenu(null)
 app.on('ready', () => {
   createWindow()
   if (process.platform === 'darwin' || process.platform === 'win32') {
     try {
-      tray = new Tray(iconPath)
+      const contextMenuTemplate = []
 
-      const contextMenu = Menu.buildFromTemplate([
-        { label: 'Show App', click: () => { mainWindow.show() } },
-        { label: 'Quit', click: () => { app.isQuiting = true; app.quit() } }
-      ])
+      handleGetData('', path.join(userDataFilePath, 'status.json'))
+        .then(statuses => {
+          statuses.forEach(status => {
+            contextMenuTemplate.push({
+              label: status.name,
+              click: () => {
+                handleSetBulbStatus(mainWindow, '', status.ip, status)
+                  .catch(error => console.error('Error setting bulb status:', error))
+              }
+            })
+          })
 
-      tray.setToolTip('Light control pro app')
-      tray.setContextMenu(contextMenu)
+          if (statuses.length > 0) {
+            contextMenuTemplate.push({ type: 'separator' })
+          }
 
-      tray.on('click', () => {
-        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show()
-      })
+          contextMenuTemplate.push(
+            { label: 'Open app', click: () => mainWindow.show() },
+            { label: 'Quit', role: 'quit' }
+          )
+
+          const trayIcon = nativeImage.createFromPath(iconPath).resize({
+            width: 32, height: 32
+          })
+
+          tray = new Tray(trayIcon)
+          const contextMenu = Menu.buildFromTemplate(contextMenuTemplate)
+
+          tray.setToolTip('Light control pro')
+          tray.on('click', () => {
+            mainWindow.show()
+          })
+
+          tray.setContextMenu(contextMenu)
+        })
+        .catch(error => console.error('Error getting shortcuts data:', error))
     } catch (error) {
       console.error('Error during app ready:', error)
     }
@@ -152,64 +246,6 @@ app.on('ready', () => {
     logStream.write(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ') + '\n')
     originalConsoleLog(...args)
   }
-
-  const exePath = app.isPackaged
-    ? (process.env.APPIMAGE ? process.env.APPIMAGE : process.execPath)
-    : app.getPath('exe')
-
-  const startOnStartup = (value) => {
-    if (process.platform === 'darwin' || process.platform === 'win32') {
-      app.setLoginItemSettings({
-        openAsHidden: value,
-        openAtLogin: value,
-        path: exePath
-      })
-    }
-    if (os.platform() === 'linux' && value) {
-      const desktopEntry = `[Desktop Entry]
-  Type=Application
-  Name=Light Control Pro
-  Exec=${exePath}
-  X-GNOME-Autostart-enabled=true`
-
-      const autostartDir = path.join(os.homedir(), '.config', 'autostart')
-      const desktopFilePath = path.join(autostartDir, 'light-control-pro.desktop')
-
-      if (!fs.existsSync(autostartDir)) {
-        fs.mkdirSync(autostartDir, { recursive: true })
-      }
-
-      fs.writeFileSync(desktopFilePath, desktopEntry)
-      fs.chmodSync(desktopFilePath, '755')
-      console.log(`Created .desktop file at: ${desktopFilePath}`)
-    }
-  }
-
-  const userDataFilePath = app.getPath('userData')
-  const settingsFilePath = path.join(userDataFilePath, 'settings.json')
-  handleGetData('', settingsFilePath)
-    .then(async (settings) => {
-      if (settings.length > 0) {
-        settings.forEach((setting) => {
-          if (setting.id === 'startup') {
-            startOnStartup(setting.runOnStartup)
-          }
-        })
-      } else {
-        handleAddOrUpdateSetting(null, 'startup', { runOnStartup: true }, settingsFilePath)
-        startOnStartup(true)
-      }
-    })
-
-  registerShortcuts(userDataFilePath)
-  const shortcutsFilePath = path.join(userDataFilePath, 'shortcuts.json')
-  handleGetData(null, shortcutsFilePath).then(e =>
-    fs.watch(shortcutsFilePath, (eventType, filename) => {
-      if (eventType === 'change') {
-        registerShortcuts(userDataFilePath)
-      }
-    })
-  )
 
   ipcMain.handle('setBulb', handleSetBulb)
   ipcMain.on('startDiscovery', () => {

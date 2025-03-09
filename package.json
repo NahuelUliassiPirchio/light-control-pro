@@ -1,7 +1,7 @@
 {
   "name": "light-control-pro",
   "version": "1.0.2",
-  "description": "A Cutting-Edge Electron Application for Effortless Smart Light Control from Your PC",
+  "description": "Smart Light Controller from Your PC",
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",
