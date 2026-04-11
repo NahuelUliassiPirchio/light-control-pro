@@ -82,6 +82,9 @@ body {
 body button:hover {
   cursor: pointer;
 }
+img {
+  -webkit-user-drag: none;
+}
 body input {
   font-family: var(--text-font);
 }

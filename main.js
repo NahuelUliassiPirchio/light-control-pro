@@ -14,6 +14,7 @@ const {
   handleSetBulbStatus,
   handleChangeColor,
   handleGetBulbs,
+  handleGetBulbState,
   handleSetBulb,
   handleSetScene,
   handleSetTemp
@@ -218,8 +219,34 @@ app.on('ready', () => {
   ipcMain.on('window-close', () => mainWindow.close())
 
   ipcMain.handle('setBulb', handleSetBulb)
-  ipcMain.on('startDiscovery', () => {
-    handleGetBulbs((bulbData) => mainWindow.webContents.send('bulbDiscovered', bulbData))
+  ipcMain.on('startDiscovery', async () => {
+    const discoveredMacs = new Set()
+
+    function notifyBulb (bulbData) {
+      const mac = bulbData.result?.mac
+      if (mac && discoveredMacs.has(mac)) return
+      if (mac) discoveredMacs.add(mac)
+      mainWindow.webContents.send('bulbDiscovered', bulbData)
+    }
+
+    // Broadcast discovery runs in background for 10s
+    handleGetBulbs(notifyBulb).catch(err => console.error('Error en descubrimiento broadcast:', err))
+
+    // Also query stored bulbs directly — catches bulbs that ignore broadcasts
+    try {
+      const storedBulbs = await handleGetData('', path.join(userDataFilePath, 'bulbs.json'))
+      const knownBulbs = storedBulbs.filter(b => b.ip && !b.bulbs)
+      await Promise.allSettled(knownBulbs.map(async (bulb) => {
+        try {
+          const pilotData = await handleGetBulbState(null, bulb.ip)
+          notifyBulb({ ip: bulb.ip, ...pilotData })
+        } catch (err) {
+          console.error(`No se pudo contactar bombilla guardada ${bulb.name} (${bulb.ip}):`, err.message)
+        }
+      }))
+    } catch (err) {
+      console.error('Error al consultar bombillas guardadas:', err.message)
+    }
   })
   ipcMain.handle('changeColor', handleChangeColor)
   ipcMain.handle('setTemp', handleSetTemp)

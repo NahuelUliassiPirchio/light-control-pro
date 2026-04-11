@@ -158,8 +158,7 @@ function discoverBulbs (callback) {
       sock.bind(port || 0)
     }
 
-    // Main socket: send broadcasts and receive replies on random port
-    createDiscoverySocket(null, (sock) => {
+    function sendBroadcasts (sock) {
       networkInterfaces.forEach(({ broadcast }) => {
         sock.send(registrationMsg, 0, registrationMsg.length, 38899, broadcast, (err) => {
           if (err) console.error(`Error enviando registration a ${broadcast}:`, err.message)
@@ -168,7 +167,19 @@ function discoverBulbs (callback) {
           if (err) console.error(`Error enviando getPilot a ${broadcast}:`, err.message)
         })
       })
+    }
+
+    // Main socket: send broadcasts and receive replies on random port
+    createDiscoverySocket(null, (sock) => {
+      sendBroadcasts(sock)
       console.log('Mensajes de descubrimiento enviados a:', networkInterfaces.map(n => n.broadcast))
+
+      // Retry every 3s to catch bulbs that wake up late
+      const retryInterval = setInterval(() => {
+        if (resolved) { clearInterval(retryInterval); return }
+        console.log('Reintentando descubrimiento...')
+        sendBroadcasts(sock)
+      }, 3000)
     })
 
     // Secondary socket on port 38900: receive registration responses WiZ bulbs send here
