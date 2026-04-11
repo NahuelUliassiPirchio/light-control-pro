@@ -160,6 +160,92 @@ document.getElementById('config-button').addEventListener('click', () => {
   location.href = './config.html'
 })
 
+// --- Audio Reactive Mode ---
+let audioActive = false
+let audioStream = null
+let audioContext = null
+let animFrameId = null
+let lastCommandTime = 0
+const THROTTLE_MS = 200
+
+const audioButton = document.getElementById('audio-button')
+
+audioButton.addEventListener('click', async () => {
+  if (audioActive) {
+    stopAudioMode()
+  } else {
+    await startAudioMode()
+  }
+})
+
+async function startAudioMode () {
+  try {
+    const sources = await window.audioCapture.getDesktopSources()
+    if (!sources.length) throw new Error('No desktop sources found')
+
+    audioStream = await navigator.mediaDevices.getUserMedia({
+      audio: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sources[0].id } },
+      video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sources[0].id } }
+    })
+
+    // Drop video tracks — only need audio
+    audioStream.getVideoTracks().forEach(t => t.stop())
+
+    audioContext = new AudioContext()
+    const source = audioContext.createMediaStreamSource(audioStream)
+    const analyser = audioContext.createAnalyser()
+    analyser.fftSize = 256
+    source.connect(analyser)
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount) // 128 bins
+
+    audioActive = true
+    audioButton.classList.add('active')
+
+    function tick () {
+      if (!audioActive) return
+      animFrameId = requestAnimationFrame(tick)
+
+      analyser.getByteFrequencyData(dataArray)
+
+      const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length
+      const bass = avg(dataArray.slice(0, 5))    // ~0-860Hz
+      const treble = avg(dataArray.slice(20, 60)) // ~3440-10320Hz
+      const overall = avg(dataArray)
+
+      const dimming = Math.max(10, Math.round((overall / 255) * 100))
+      const bassRatio = bass / (bass + treble + 1)
+      const temp = Math.round(2200 + (1 - bassRatio) * 4000) // warm=bass, cool=treble
+
+      const now = Date.now()
+      if (now - lastCommandTime < THROTTLE_MS) return
+      lastCommandTime = now
+
+      // Send to all discovered bulbs
+      if (storedBulbs) {
+        storedBulbs
+          .filter(b => b.ip && !b.bulbs)
+          .forEach(b => {
+            window.bulbNetworking.setTemp(b.ip, temp, dimming).catch(() => {})
+          })
+      }
+    }
+
+    tick()
+  } catch (err) {
+    console.error('Error starting audio mode:', err)
+    alert('Could not capture system audio: ' + err.message)
+  }
+}
+
+function stopAudioMode () {
+  audioActive = false
+  audioButton.classList.remove('active')
+  if (animFrameId) cancelAnimationFrame(animFrameId)
+  if (audioContext) { audioContext.close(); audioContext = null }
+  if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null }
+}
+
 function getEntityHTML (entity, type) {
   const isRoom = type === 'room'
   const entityId = isRoom ? entity.mac : entity.result.mac

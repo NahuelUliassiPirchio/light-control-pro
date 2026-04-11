@@ -5,7 +5,8 @@ const {
   Menu,
   ipcMain,
   globalShortcut,
-  nativeImage
+  nativeImage,
+  desktopCapturer
 } = require('electron')
 const path = require('path')
 const fs = require('fs')
@@ -214,6 +215,11 @@ app.on('ready', () => {
     logStream.write(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ') + '\n')
     originalConsoleLog(...args)
   }
+
+  ipcMain.handle('get-desktop-sources', async () => {
+    const sources = await desktopCapturer.getSources({ types: ['screen'] })
+    return sources.map(s => ({ id: s.id, name: s.name }))
+  })
 
   ipcMain.on('window-minimize', () => mainWindow.minimize())
   ipcMain.on('window-close', () => mainWindow.close())

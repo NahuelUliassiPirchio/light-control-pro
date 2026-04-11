@@ -6,6 +6,10 @@ contextBridge.exposeInMainWorld('windowControls', {
   close: () => ipcRenderer.send('window-close')
 })
 
+contextBridge.exposeInMainWorld('audioCapture', {
+  getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources')
+})
+
 contextBridge.exposeInMainWorld('updateUi', {
   onUpdatedBulbs: (callback) => ipcRenderer.on('updatedBulbs', (_event, value) => callback(value))
 })
