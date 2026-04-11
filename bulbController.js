@@ -27,7 +27,7 @@ async function sendCommandToBulb (ip, message) {
 
     client.on('message', (msg, info) => {
       if (info.address === ip) {
-        console.log(`Respuesta recibida de ${info.address}: ${msg}`)
+        console.log(`Response received from ${info.address}: ${msg}`)
         responseReceived = true
         client.close()
         resolve(msg.toString())
@@ -39,13 +39,13 @@ async function sendCommandToBulb (ip, message) {
         client.close()
         reject(err)
       }
-      console.log('Comando enviado, esperando respuesta...')
+      console.log('Command sent, waiting for response...')
     })
 
     setTimeout(() => {
       if (!responseReceived) {
         client.close()
-        reject(new Error('No se recibió respuesta del bulb'))
+        reject(new Error('No response received from bulb'))
       }
     }, 5000)
   })
@@ -78,7 +78,7 @@ async function handleSetBulb (event, ip, state) {
     const response = await sendCommandToBulb(ip, message)
     return JSON.parse(response)
   } catch (error) {
-    console.error('Error al cambiar el estado del bulb:', error)
+    console.error('Error changing bulb state:', error)
     throw error
   }
 }
@@ -117,18 +117,18 @@ function discoverBulbs (callback) {
             .then(response => {
               const pilotData = JSON.parse(response)
               const bulbData = { ip: rinfo.address, ...pilotData }
-              console.log('Bombilla descubierta (estado completo):', bulbData)
+              console.log('Bulb discovered (full state):', bulbData)
               callback(bulbData)
             })
-            .catch(err => console.error('Error obteniendo estado de bombilla tras registro:', err))
+            .catch(err => console.error('Error getting bulb state after registration:', err))
           return
         }
 
         const bulbData = { ip: rinfo.address, ...parsed }
-        console.log('Bombilla descubierta:', bulbData)
+        console.log('Bulb discovered:', bulbData)
         callback(bulbData)
       } catch (e) {
-        console.error('Error al parsear respuesta de bombilla:', e)
+        console.error('Error parsing bulb response:', e)
       }
     }
 
@@ -144,7 +144,7 @@ function discoverBulbs (callback) {
       sockets.push(sock)
 
       sock.on('error', (err) => {
-        console.error(`Error en socket de descubrimiento (puerto ${port || 'aleatorio'}):`, err.message)
+        console.error(`Discovery socket error (port ${port || 'random'}):`, err.message)
         // Don't reject — other socket may still work
       })
 
@@ -161,10 +161,10 @@ function discoverBulbs (callback) {
     function sendBroadcasts (sock) {
       networkInterfaces.forEach(({ broadcast }) => {
         sock.send(registrationMsg, 0, registrationMsg.length, 38899, broadcast, (err) => {
-          if (err) console.error(`Error enviando registration a ${broadcast}:`, err.message)
+          if (err) console.error(`Error sending registration to ${broadcast}:`, err.message)
         })
         sock.send(getPilotMsg, 0, getPilotMsg.length, 38899, broadcast, (err) => {
-          if (err) console.error(`Error enviando getPilot a ${broadcast}:`, err.message)
+          if (err) console.error(`Error sending getPilot to ${broadcast}:`, err.message)
         })
       })
     }
@@ -172,12 +172,12 @@ function discoverBulbs (callback) {
     // Main socket: send broadcasts and receive replies on random port
     createDiscoverySocket(null, (sock) => {
       sendBroadcasts(sock)
-      console.log('Mensajes de descubrimiento enviados a:', networkInterfaces.map(n => n.broadcast))
+      console.log('Discovery messages sent to:', networkInterfaces.map(n => n.broadcast))
 
       // Retry every 3s to catch bulbs that wake up late
       const retryInterval = setInterval(() => {
         if (resolved) { clearInterval(retryInterval); return }
-        console.log('Reintentando descubrimiento...')
+        console.log('Retrying discovery...')
         sendBroadcasts(sock)
       }, 3000)
     })
@@ -192,10 +192,10 @@ function discoverBulbs (callback) {
 async function handleGetBulbs (callback) {
   try {
     const bulbs = await discoverBulbs(callback)
-    console.log(`Bombillas descubiertas: ${bulbs.length}`)
+    console.log(`Bulbs discovered: ${bulbs.length}`)
     return bulbs
   } catch (error) {
-    console.error('Error al descubrir bombillas:', error)
+    console.error('Error discovering bulbs:', error)
     throw error
   }
 }
@@ -244,10 +244,10 @@ async function handleSetBulbStatus (mainWindow, _event, ip, commandParams) {
   try {
     const response = await sendCommandToBulb(ip, messageString)
     mainWindow.webContents.send('updatedBulbs', true)
-    console.log('Respuesta del comando enviado:', response)
+    console.log('Command response:', response)
     return JSON.parse(response)
   } catch (error) {
-    console.error('Error al enviar el comando a la bombilla:', error)
+    console.error('Error sending command to bulb:', error)
     throw error
   }
 }

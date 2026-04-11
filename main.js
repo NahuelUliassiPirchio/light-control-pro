@@ -230,7 +230,7 @@ app.on('ready', () => {
     }
 
     // Broadcast discovery runs in background for 10s
-    handleGetBulbs(notifyBulb).catch(err => console.error('Error en descubrimiento broadcast:', err))
+    handleGetBulbs(notifyBulb).catch(err => console.error('Broadcast discovery error:', err))
 
     // Also query stored bulbs directly — catches bulbs that ignore broadcasts
     try {
@@ -241,11 +241,11 @@ app.on('ready', () => {
           const pilotData = await handleGetBulbState(null, bulb.ip)
           notifyBulb({ ip: bulb.ip, ...pilotData })
         } catch (err) {
-          console.error(`No se pudo contactar bombilla guardada ${bulb.name} (${bulb.ip}):`, err.message)
+          console.error(`Could not reach stored bulb ${bulb.name} (${bulb.ip}):`, err.message)
         }
       }))
     } catch (err) {
-      console.error('Error al consultar bombillas guardadas:', err.message)
+      console.error('Error querying stored bulbs:', err.message)
     }
   })
   ipcMain.handle('changeColor', handleChangeColor)
