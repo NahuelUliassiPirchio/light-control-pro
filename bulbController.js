@@ -1,4 +1,23 @@
 const { createSocket } = require('dgram')
+const os = require('os')
+
+function getSubnetBroadcasts () {
+  const broadcasts = []
+  const interfaces = os.networkInterfaces()
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        const parts = iface.address.split('.')
+        const maskParts = iface.netmask.split('.')
+        const broadcast = parts.map((part, i) =>
+          (parseInt(part) | (~parseInt(maskParts[i]) & 255)).toString()
+        ).join('.')
+        broadcasts.push({ localIp: iface.address, broadcast })
+      }
+    }
+  }
+  return broadcasts.length > 0 ? broadcasts : [{ localIp: '0.0.0.0', broadcast: '255.255.255.255' }]
+}
 
 async function sendCommandToBulb (ip, message) {
   return new Promise((resolve, reject) => {
@@ -66,34 +85,96 @@ async function handleSetBulb (event, ip, state) {
 
 function discoverBulbs (callback) {
   return new Promise((resolve, reject) => {
-    const client = createSocket('udp4')
-    const message = Buffer.from(JSON.stringify({ method: 'getPilot', params: {} }))
-    const bulbs = []
+    const networkInterfaces = getSubnetBroadcasts()
+    const localIp = networkInterfaces[0].localIp
+    const discoveredMacs = new Set()
 
-    client.on('listening', () => {
-      client.setBroadcast(true)
-    })
+    // WiZ standard discovery: bulbs respond to registration requests
+    const registrationMsg = Buffer.from(JSON.stringify({
+      method: 'registration',
+      params: { phoneMac: 'AAAAAAAAAAAA', register: false, phoneIp: localIp, id: '1' }
+    }))
+    // Fallback: getPilot broadcast (some bulbs respond to this)
+    const getPilotMsg = Buffer.from(JSON.stringify({ method: 'getPilot', params: {} }))
 
-    client.on('message', (msg, rinfo) => {
-      const bulbData = { ip: rinfo.address, ...JSON.parse(msg.toString()) }
-      console.log(bulbData)
-      callback(bulbData)
-    })
+    // WiZ bulbs can respond to registration on port 38900 OR reply to our source port
+    // We create two sockets: one on a random port (send+receive), one on 38900 (receive registration responses)
+    const sockets = []
+    let resolved = false
 
-    client.bind(() => {
-      client.send(message, 0, message.length, 38899, '255.255.255.255', (err) => {
-        if (err) {
-          client.close()
-          reject(err)
+    function handleMessage (msg, rinfo) {
+      try {
+        const parsed = JSON.parse(msg.toString())
+        const mac = parsed.result?.mac || parsed.params?.mac
+        if (mac) {
+          if (discoveredMacs.has(mac)) return
+          discoveredMacs.add(mac)
         }
-        console.log('Mensaje de descubrimiento enviado a la red.')
 
-        setTimeout(() => {
-          client.close()
-          resolve(bulbs)
-        }, 5000)
+        // Registration response only has { mac, success } — fetch full state via getPilot
+        if (parsed.method === 'registration') {
+          sendCommandToBulb(rinfo.address, JSON.stringify({ method: 'getPilot', params: {} }))
+            .then(response => {
+              const pilotData = JSON.parse(response)
+              const bulbData = { ip: rinfo.address, ...pilotData }
+              console.log('Bombilla descubierta (estado completo):', bulbData)
+              callback(bulbData)
+            })
+            .catch(err => console.error('Error obteniendo estado de bombilla tras registro:', err))
+          return
+        }
+
+        const bulbData = { ip: rinfo.address, ...parsed }
+        console.log('Bombilla descubierta:', bulbData)
+        callback(bulbData)
+      } catch (e) {
+        console.error('Error al parsear respuesta de bombilla:', e)
+      }
+    }
+
+    function closeAll () {
+      if (resolved) return
+      resolved = true
+      sockets.forEach(s => { try { s.close() } catch (_) {} })
+      resolve()
+    }
+
+    function createDiscoverySocket (port, onReady) {
+      const sock = createSocket('udp4')
+      sockets.push(sock)
+
+      sock.on('error', (err) => {
+        console.error(`Error en socket de descubrimiento (puerto ${port || 'aleatorio'}):`, err.message)
+        // Don't reject — other socket may still work
       })
+
+      sock.on('message', handleMessage)
+
+      sock.on('listening', () => {
+        sock.setBroadcast(true)
+        if (onReady) onReady(sock)
+      })
+
+      sock.bind(port || 0)
+    }
+
+    // Main socket: send broadcasts and receive replies on random port
+    createDiscoverySocket(null, (sock) => {
+      networkInterfaces.forEach(({ broadcast }) => {
+        sock.send(registrationMsg, 0, registrationMsg.length, 38899, broadcast, (err) => {
+          if (err) console.error(`Error enviando registration a ${broadcast}:`, err.message)
+        })
+        sock.send(getPilotMsg, 0, getPilotMsg.length, 38899, broadcast, (err) => {
+          if (err) console.error(`Error enviando getPilot a ${broadcast}:`, err.message)
+        })
+      })
+      console.log('Mensajes de descubrimiento enviados a:', networkInterfaces.map(n => n.broadcast))
     })
+
+    // Secondary socket on port 38900: receive registration responses WiZ bulbs send here
+    createDiscoverySocket(38900, null)
+
+    setTimeout(closeAll, 10000)
   })
 }
 
