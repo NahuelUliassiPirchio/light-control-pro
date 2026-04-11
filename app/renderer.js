@@ -1,3 +1,6 @@
+document.getElementById('minimizeBtn').addEventListener('click', () => window.windowControls.minimize())
+document.getElementById('closeBtn').addEventListener('click', () => window.windowControls.close())
+
 const template = document.getElementById('bulb-template').content
 const reloadButton = document.getElementById('reload-button')
 const addRoomButton = document.getElementById('add-room-button')
@@ -151,6 +154,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 reloadButton.addEventListener('click', () => {
   location.reload()
+})
+
+document.getElementById('config-button').addEventListener('click', () => {
+  location.href = './config.html'
 })
 
 function getEntityHTML (entity, type) {

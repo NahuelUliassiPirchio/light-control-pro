@@ -27,6 +27,57 @@ body {
   color: var(--text-color);
   font-family: var(--text-font);
   display: block;
+  padding: 16px 20px;
+  box-sizing: border-box;
+}
+
+.titlebar {
+  -webkit-app-region: drag;
+  user-select: none;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -16px -20px 16px -20px;
+  padding: 0 0 0 16px;
+  background: rgba(20, 20, 40, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.titlebar-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.titlebar-controls {
+  -webkit-app-region: no-drag;
+  display: flex;
+  height: 100%;
+}
+
+.titlebar-btn {
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.titlebar-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.titlebar-btn.close-btn:hover {
+  background: #c42b1c;
+  color: white;
 }
 body button:hover {
   cursor: pointer;
@@ -125,32 +176,84 @@ body input {
 }
 
 .title {
-  margin-left: 8px;
+  margin: 0;
   color: white;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 .main-header {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 #add-room-button {
-  width: 50px;
-  height: 50px;
+  width: 40px;
+  height: 40px;
   align-self: center;
-  background: gray;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   padding: 0;
-  border-radius: 24%;
+  border-radius: 50%;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+#add-room-button .icon {
+  width: 20px;
 }
 #add-room-button:hover {
-  background-color: rgb(77, 74, 74);
+  background: rgba(255, 255, 255, 0.2);
 }
+#config-button {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: background 0.2s;
+}
+
+#config-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+#config-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 #reload-button {
-  margin-left: 16px;
-  background: none;
-  border: none;
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.5s ease;
+}
+#reload-button .icon {
+  width: 18px;
 }
 #reload-button:hover {
-  transform: rotate(-20deg);
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(-180deg);
 }
 
 .floating-buttons {
@@ -249,31 +352,33 @@ body input {
   display: inline;
 }
 
-#bulbs-container{
-  display: flex;
-  flex-wrap: wrap;
+#bulbs-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
 }
 
 .bulb-section {
-  background: rgba(52, 52, 73, 0.7);
+  background: rgba(52, 52, 73, 0.85);
   border-radius: 16px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px) saturate(180%);
   -webkit-backdrop-filter: blur(10px) saturate(180%);
-  border: 1px solid rgba(42, 37, 37, 0.3);
-  z-index: 20;  
+  border: 1px solid rgba(255, 255, 255, 0.07);
   list-style: none;
   padding: 1rem;
-  flex: 0 0 calc(25% - 10px);
-  margin: 5px;
-  height: 220px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-width: 200px;
-  max-width: 300px;
-  border-radius: 10%;
+  gap: 12px;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.bulb-section:hover {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
 }
 
 .bulb-section .bulb-header .bulb-name {
@@ -303,8 +408,15 @@ body input {
   flex-direction: row;
   justify-content: space-between;
 }
+.tab-area {
+  height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
 .bulb-section .tab-content {
-  height: 30%;
+  height: 100%;
 }
 
 .error{
@@ -391,9 +503,6 @@ input[type="range"] {
   accent-color: linear-gradient(90deg, rgba(254,223,165,1) 0%, rgba(247,251,254,1) 50%, rgba(202,232,254,1) 100%);
   background: rgb(0,0,0);
   background: linear-gradient(90deg, rgba(0,0,0,0.7035189075630253) 0%, rgba(255,255,255,1) 100%);
-}
-#color, #temp {
-  max-height: 20%;
 }
 
 .tab-content > select {
@@ -486,44 +595,222 @@ input:checked + .slider:before {
 
 /* CONFIG */
 
-.config-section {
-  margin-left: 16px;
-}
-.main-title{
-  margin-left: 8px;
-}
-.config-title{
-  margin-left: -4px;
-}
-.comment-subtitle {
-  color: rgb(179, 174, 174);
-}
-.recorder-container{
+.config-topbar {
   display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.back-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.back-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.main-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.config-card {
+  background: rgba(52, 52, 73, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  backdrop-filter: blur(10px) saturate(180%);
+  padding: 1.2rem 1.4rem;
+  margin-bottom: 16px;
+}
+
+.config-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
-.recorder-container button{
-  background-color: #e0d7f5;
-  border: 1px #1c2d35 solid;
-  border-radius: 5px;
-  color: #473232;
-  padding: 8px;
+
+.config-title {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+  font-weight: 600;
 }
-#shortcutsContainer{
+
+.comment-subtitle {
+  margin: 0 0 16px 0;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.82rem;
+}
+
+.config-card-header .comment-subtitle {
+  margin-bottom: 0;
+}
+
+.recorder-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recorder-container select {
+  flex: 1;
+  min-width: 160px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: white;
+  padding: 8px 10px;
+  font-family: var(--text-font);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.recorder-container select:focus {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.recorder-container select option {
+  background: #2d2d45;
+}
+
+#recordingButton {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  padding: 8px 14px;
+  font-family: var(--text-font);
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+#recordingButton:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+#recordingButton.recording {
+  background: rgba(220, 38, 38, 0.25);
+  border-color: rgba(220, 38, 38, 0.6);
+}
+
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+#recordingButton.recording .rec-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.edit-indicator {
+  font-size: 0.78rem;
+  color: rgba(255, 220, 100, 0.85);
+  background: rgba(255, 200, 0, 0.08);
+  border: 1px solid rgba(255, 200, 0, 0.2);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+#shortcutsContainer {
   list-style: none;
+  padding: 0;
+  margin: 20px 0 0 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-#shortcutsContainer li{
-  display: flex;
   gap: 8px;
 }
-#shortcutsContainer li button{
+
+#shortcutsContainer li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.shortcut-status-name {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.shortcut-keys {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.shortcut-keys kbd {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-family: var(--text-font);
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.shortcut-keys .key-separator {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.75rem;
+}
+
+#shortcutsContainer li button {
   background: none;
   border: none;
-  border-radius: 12%;
+  border-radius: 8px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  transition: opacity 0.2s, background 0.2s;
 }
-#shortcutsContainer li button:hover{
-  background: darkslateblue;
+
+#shortcutsContainer li button:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#shortcutsContainer li button img {
+  width: 16px;
+  height: 16px;
 }

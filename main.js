@@ -29,7 +29,6 @@ const {
 } = require('./dataController.js')
 
 let mainWindow
-let configWindow
 let tray
 const iconPath = path.join(__dirname, './build/icons/icon.png')
 
@@ -42,7 +41,8 @@ const createWindow = () => {
       contextIsolation: true,
       preload: path.join(__dirname, 'app/preload.js')
     },
-    hasShadow: false
+    frame: false,
+    maximizable: false
   })
 
   mainWindow.loadFile(path.join(__dirname, 'app/index.html'))
@@ -55,41 +55,8 @@ const createWindow = () => {
     }
   })
 
-  const menu = Menu.buildFromTemplate(menuTemplate)
-  mainWindow.setMenu(menu)
+  mainWindow.setMenu(null)
 }
-
-const createConfigWindow = () => {
-  if (configWindow && !configWindow.isDestroyed()) {
-    configWindow.focus()
-    return
-  }
-
-  configWindow = new BrowserWindow({
-    width: 600,
-    height: 600,
-    icon: iconPath,
-    webPreferences: {
-      preload: path.join(__dirname, 'app/preload.js')
-    }
-  })
-
-  configWindow.setMenu(null)
-  // configWindow.webContents.openDevTools()
-  configWindow.loadFile(path.join(__dirname, 'app/config.html'))
-}
-
-const menuTemplate = [
-  {
-    label: 'Settings',
-    submenu: [
-      {
-        label: 'Shortcuts',
-        click: createConfigWindow
-      }
-    ]
-  }
-]
 
 const exePath = app.isPackaged
   ? (process.env.APPIMAGE ? process.env.APPIMAGE : process.execPath)
@@ -246,6 +213,9 @@ app.on('ready', () => {
     logStream.write(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ') + '\n')
     originalConsoleLog(...args)
   }
+
+  ipcMain.on('window-minimize', () => mainWindow.minimize())
+  ipcMain.on('window-close', () => mainWindow.close())
 
   ipcMain.handle('setBulb', handleSetBulb)
   ipcMain.on('startDiscovery', () => {

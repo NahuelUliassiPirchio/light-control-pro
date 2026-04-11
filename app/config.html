@@ -9,31 +9,55 @@
     <script defer src="./configRenderer.js"></script>
 </head>
 <body>
-    <h1 class="main-title">Configuration</h1>
-    <section class="config-section">
-        <h2 class="config-title">Autostart</h2>
-        <p class="comment-subtitle">Run application automatically when you start your device.</p>
-        <input id="runOnStartup" name="runOnStartup" type="checkbox">
-        <label for="runOnStartup">Run on startup</label>
+    <div class="titlebar">
+      <span class="titlebar-title">Light Control Pro</span>
+      <div class="titlebar-controls">
+        <button class="titlebar-btn" id="minimizeBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><rect fill="currentColor" width="10" height="1.5" x="1" y="5.25" rx="1"/></svg>
+        </button>
+        <button class="titlebar-btn close-btn" id="closeBtn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="currentColor" d="M1.47 1.47a.75.75 0 0 1 1.06 0L6 4.94l3.47-3.47a.75.75 0 1 1 1.06 1.06L7.06 6l3.47 3.47a.75.75 0 1 1-1.06 1.06L6 7.06 2.53 10.53a.75.75 0 0 1-1.06-1.06L4.94 6 1.47 2.53a.75.75 0 0 1 0-1.06z"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="config-topbar">
+      <button class="back-button" id="backButton" title="Back">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+      <h1 class="main-title">Configuration</h1>
+    </div>
+
+    <section class="config-card">
+        <div class="config-card-header">
+            <div>
+                <h2 class="config-title">Autostart</h2>
+                <p class="comment-subtitle">Run automatically when your device starts.</p>
+            </div>
+            <label class="bulb-switch">
+                <input id="runOnStartup" name="runOnStartup" type="checkbox">
+                <span class="slider round"></span>
+            </label>
+        </div>
     </section>
-    <section class="config-section">
-        <h2 class="config-title">Shortcut Creator</h2>
-        <p class="comment-subtitle">Press the keys to assign a shortcut:</p>
+
+    <section class="config-card">
+        <h2 class="config-title">Shortcuts</h2>
+        <p class="comment-subtitle">Assign a keyboard shortcut to a saved status.</p>
+
         <div class="recorder-container">
             <select name="states" id="statesList">
                 <option selected disabled>Select a saved status</option>
             </select>
-            <form id="shortcutForm">
-            <div id="editIndicator" style="display: none;"></div>
-                <button type="button" id="recordingButton">+ Record</button>
-            </form>
+            <div id="editIndicator" class="edit-indicator" style="display: none;"></div>
+            <button type="button" id="recordingButton">
+                <span class="rec-dot"></span>
+                Record
+            </button>
         </div>
-        <div>
-            <h2 class="config-title">Existing Shortcuts</h2>
-            <ul id="shortcutsContainer">
 
-            </ul>
-        </div>
+        <ul id="shortcutsContainer"></ul>
     </section>
 </body>
 </html>

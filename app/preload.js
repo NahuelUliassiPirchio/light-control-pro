@@ -1,6 +1,11 @@
 'use strict'
 const { contextBridge, ipcRenderer } = require('electron')
 
+contextBridge.exposeInMainWorld('windowControls', {
+  minimize: () => ipcRenderer.send('window-minimize'),
+  close: () => ipcRenderer.send('window-close')
+})
+
 contextBridge.exposeInMainWorld('updateUi', {
   onUpdatedBulbs: (callback) => ipcRenderer.on('updatedBulbs', (_event, value) => callback(value))
 })

@@ -1,3 +1,10 @@
+document.getElementById('minimizeBtn').addEventListener('click', () => window.windowControls.minimize())
+document.getElementById('closeBtn').addEventListener('click', () => window.windowControls.close())
+
+document.getElementById('backButton').addEventListener('click', () => {
+  location.href = './index.html'
+})
+
 const runOnStartupCheckbox = document.getElementById('runOnStartup')
 let isRecording = false
 let pressedKeys = {}
@@ -41,22 +48,46 @@ async function loadShortcuts () {
   const shortcuts = await window.dataProcessing.getShortcuts()
   shortcutsContainer.innerHTML = ''
 
-  if (shortcuts.length==0){
-    shortcutsContainer.innerHTML = 'No shortcuts at the moment'
-  }else{
+  if (shortcuts.length === 0) {
+    shortcutsContainer.innerHTML = '<li style="opacity:0.4; font-size:0.85rem; border:none; background:none;">No shortcuts yet.</li>'
+  } else {
     shortcuts.forEach(shortcut => {
       const statusName = getStateNameById(shortcut.statusId)
-      const shortcutDisplay = document.createElement('li')
-      shortcutDisplay.innerHTML = `${statusName}: ${shortcut.pressedKeys.join('+')}`
+      const li = document.createElement('li')
+
+      const nameSpan = document.createElement('span')
+      nameSpan.className = 'shortcut-status-name'
+      nameSpan.textContent = statusName
+
+      const keysSpan = document.createElement('span')
+      keysSpan.className = 'shortcut-keys'
+      shortcut.pressedKeys.forEach((key, i) => {
+        if (i > 0) {
+          const sep = document.createElement('span')
+          sep.className = 'key-separator'
+          sep.textContent = '+'
+          keysSpan.appendChild(sep)
+        }
+        const kbd = document.createElement('kbd')
+        kbd.textContent = key.charAt(0).toUpperCase() + key.slice(1)
+        keysSpan.appendChild(kbd)
+      })
+
       const editBtn = document.createElement('button')
       editBtn.innerHTML = '<img src="../public/edit.svg" alt="Edit shortcut">'
+      editBtn.title = 'Edit'
       editBtn.onclick = () => startEditingShortcut(shortcut.id, shortcut.statusId)
+
       const deleteBtn = document.createElement('button')
-      deleteBtn.innerHTML = '<img src="../public/delete.svg" alt="Delete shortcut">'
+      deleteBtn.innerHTML = '<img src="../public/delete-icon.svg" alt="Delete shortcut">'
+      deleteBtn.title = 'Delete'
       deleteBtn.onclick = () => deleteShortcut(shortcut.id)
-      shortcutDisplay.appendChild(editBtn)
-      shortcutDisplay.appendChild(deleteBtn)
-      shortcutsContainer.appendChild(shortcutDisplay)
+
+      li.appendChild(nameSpan)
+      li.appendChild(keysSpan)
+      li.appendChild(editBtn)
+      li.appendChild(deleteBtn)
+      shortcutsContainer.appendChild(li)
     })
   }
 }
@@ -74,7 +105,7 @@ function startEditingShortcut (id, statusId) {
   editingShortcutId = id
   statesList.value = statusId
   editIndicator.style.display = 'block'
-  editIndicator.textContent = `Editing Shortcut: ${id}`
+  editIndicator.textContent = `Editing: ${getStateNameById(statusId)}`
   recButton.click()
 }
 
@@ -85,7 +116,10 @@ async function deleteShortcut (id) {
 
 async function toggleRecording () {
   isRecording = !isRecording
-  recButton.innerText = isRecording ? 'Stop Recording' : '+ Record'
+  recButton.classList.toggle('recording', isRecording)
+  recButton.innerHTML = isRecording
+    ? '<span class="rec-dot"></span> Recording...'
+    : '<span class="rec-dot"></span> Record'
 
   if (!isRecording) {
     document.removeEventListener('keydown', keyDown)
@@ -136,7 +170,9 @@ function keyUp (event) {
 
 function updateKeyInfo () {
   const keys = Object.keys(pressedKeys)
-  recButton.innerText = keys.length > 0 ? `${keys.join(' + ')}` : '+ Record'
+  recButton.innerHTML = keys.length > 0
+    ? `<span class="rec-dot"></span> ${keys.join(' + ')}`
+    : '<span class="rec-dot"></span> Recording...'
 }
 
 recButton.addEventListener('click', toggleRecording)
