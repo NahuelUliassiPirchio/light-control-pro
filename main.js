@@ -38,6 +38,7 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 600,
     height: 600,
+    minWidth: 300,
     icon: iconPath,
     webPreferences: {
       contextIsolation: true,
@@ -92,6 +93,35 @@ function startOnStartup (value) {
   }
 }
 
+async function applySavedStatus (status) {
+  const targets = Array.isArray(status.bulbs) && status.bulbs.length > 0
+    ? status.bulbs.filter(bulb => bulb.ip)
+    : (status.ip ? [{ ip: status.ip }] : [])
+
+  if (targets.length === 0) {
+    throw new Error('Saved status does not contain any reachable bulbs.')
+  }
+
+  const uniqueTargets = targets.filter((target, index, array) =>
+    array.findIndex(item => item.ip === target.ip) === index
+  )
+
+  const results = await Promise.allSettled(uniqueTargets.map(target =>
+    handleSetBulbStatus(mainWindow, '', target.ip, status, { skipUiRefresh: true })
+  ))
+
+  if (mainWindow) {
+    mainWindow.webContents.send('updatedBulbs', true)
+  }
+
+  const rejectedResult = results.find(result => result.status === 'rejected')
+  if (rejectedResult) {
+    throw rejectedResult.reason
+  }
+
+  return results
+}
+
 async function registerShortcuts (userDataFilePath) {
   handleGetData('', path.join(userDataFilePath, 'shortcuts.json'))
     .then(shortcuts => {
@@ -115,7 +145,7 @@ async function registerShortcuts (userDataFilePath) {
             }).join('+')
 
             globalShortcut.register(shortcutAccelerator, () => {
-              handleSetBulbStatus(mainWindow, '', shortcutStatus.ip, shortcutStatus)
+              applySavedStatus(shortcutStatus)
                 .catch(error => console.error('Error setting bulb status:', error))
             })
           })
@@ -166,7 +196,7 @@ app.on('ready', () => {
             contextMenuTemplate.push({
               label: status.name,
               click: () => {
-                handleSetBulbStatus(mainWindow, '', status.ip, status)
+                applySavedStatus(status)
                   .catch(error => console.error('Error setting bulb status:', error))
               }
             })
@@ -257,7 +287,10 @@ app.on('ready', () => {
   ipcMain.handle('changeColor', handleChangeColor)
   ipcMain.handle('setTemp', handleSetTemp)
   ipcMain.handle('setScene', handleSetScene)
-  ipcMain.handle('setStatus', (_event, ip, commandParams) => handleSetBulbStatus(mainWindow, _event, ip, commandParams))
+  ipcMain.handle('setStatus', (_event, ip, commandParams) => applySavedStatus({
+    ...commandParams,
+    ip: commandParams.ip ?? ip
+  }))
 
   ipcMain.handle('addStatus', (event, data) => handleAddData(event, data, path.join(userDataFilePath, 'status.json')))
   ipcMain.handle('getStatus', (event, ..._args) => handleGetData(event, path.join(userDataFilePath, 'status.json')))

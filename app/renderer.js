@@ -13,33 +13,157 @@ document.getElementById('cancelBtn').addEventListener('click', function () {
 })
 
 const modal = document.getElementById('save-status-modal')
+const saveStatusCloseButton = document.getElementById('save-status-close')
+const saveStatusCancelButton = document.getElementById('save-status-cancel')
+const saveStatusConfirmButton = document.getElementById('save-status-confirm')
+const saveStatusTitle = document.getElementById('save-status-title')
+const saveStatusDescription = document.getElementById('save-status-description')
+const saveStatusTargetType = document.getElementById('save-status-target-type')
+const saveStatusTargetName = document.getElementById('save-status-target-name')
+const saveStatusSummary = document.getElementById('save-status-summary')
+const saveStatusNameInput = document.getElementById('nameInput')
+const saveStatusHiddenInput = document.getElementById('hiddenInput')
+let pendingStatusDraft = null
+
 function closeModal () {
   modal.style.display = 'none'
+  saveStatusNameInput.value = ''
+  saveStatusHiddenInput.value = ''
+  pendingStatusDraft = null
+  saveStatusConfirmButton.disabled = false
+  saveStatusConfirmButton.innerText = 'Save preset'
 }
-modal.children[0].addEventListener('click', () => closeModal())
-function openModal (bulb) {
-  modal.style.display = 'block'
-  document.getElementById('hiddenInput').value = bulb
+
+function getEntityDisplayName (entity, isRoom) {
+  if (entity.name) return entity.name
+  if (isRoom) return 'New room'
+  return entity.result?.name || 'Bulb'
 }
-async function saveStatus () {
-  const status = JSON.parse(document.getElementById('hiddenInput').value)
-  const name = document.getElementById('nameInput').value
-  if (!name) return alert('Specify a name please')
-  const data = {
-    ...status,
-    name
+
+function getStatusSummaryItems (status) {
+  const summary = []
+  const bulbsAmount = Array.isArray(status.bulbs) ? status.bulbs.length : 0
+  summary.push(status.state ? 'On' : 'Off')
+  if (bulbsAmount > 0) {
+    summary.push(`${bulbsAmount} bulb${bulbsAmount === 1 ? '' : 's'}`)
   }
-  await window.dataProcessing.addStatus(data)
-  alert('Status successfully saved')
-  closeModal()
-  location.reload()
+  if (status.dimming !== undefined) {
+    summary.push(`Brightness ${status.dimming}%`)
+  }
+  if (status.mode === 'temp' && status.temp !== undefined) {
+    summary.push(`${status.temp}K`)
+  }
+  if (status.mode === 'color' && status.r !== undefined && status.g !== undefined && status.b !== undefined) {
+    summary.push(rgbToHex(status.r, status.g, status.b))
+  }
+  if (status.mode === 'scene' && status.sceneName) {
+    summary.push(status.sceneName)
+  }
+  return summary
 }
-modal.children[6].addEventListener('click', async () => await saveStatus())
-window.onclick = function (event) {
+
+function getTemperaturePreviewColor (temperature) {
+  const minTemp = 2200
+  const maxTemp = 6200
+  const normalizedTemp = Math.min(Math.max(temperature, minTemp), maxTemp)
+  const ratio = (normalizedTemp - minTemp) / (maxTemp - minTemp)
+  const warmColor = { r: 255, g: 191, b: 120 }
+  const coolColor = { r: 196, g: 228, b: 255 }
+  const r = Math.round(warmColor.r + ((coolColor.r - warmColor.r) * ratio))
+  const g = Math.round(warmColor.g + ((coolColor.g - warmColor.g) * ratio))
+  const b = Math.round(warmColor.b + ((coolColor.b - warmColor.b) * ratio))
+  return rgbToHex(r, g, b)
+}
+
+function getStatusPreviewItems (status) {
+  const summary = getStatusSummaryItems(status).map(item => ({ label: item }))
+
+  if (status.mode === 'color' && status.r !== undefined && status.g !== undefined && status.b !== undefined) {
+    const colorValue = rgbToHex(status.r, status.g, status.b)
+    return summary.map(item => item.label === colorValue ? { ...item, swatchColor: colorValue } : item)
+  }
+
+  if (status.mode === 'temp' && status.temp !== undefined) {
+    const tempLabel = `${status.temp}K`
+    return summary.map(item => item.label === tempLabel ? { ...item, swatchColor: getTemperaturePreviewColor(status.temp) } : item)
+  }
+
+  return summary
+}
+
+function renderStatusSummary (items, container, className) {
+  container.innerHTML = ''
+  items.forEach(item => {
+    const chip = document.createElement('span')
+    chip.className = className
+    const itemConfig = typeof item === 'string' ? { label: item } : item
+    if (itemConfig.swatchColor) {
+      const swatch = document.createElement('span')
+      swatch.className = 'status-summary-swatch'
+      swatch.style.background = itemConfig.swatchColor
+      chip.appendChild(swatch)
+    }
+    const label = document.createElement('span')
+    label.innerText = itemConfig.label
+    chip.appendChild(label)
+    container.appendChild(chip)
+  })
+}
+
+function openModal (statusDraft) {
+  pendingStatusDraft = statusDraft
+  saveStatusHiddenInput.value = JSON.stringify(statusDraft)
+  saveStatusTitle.innerText = `Save ${statusDraft.targetType} preset`
+  saveStatusDescription.innerText = `Store the current ${statusDraft.targetType} configuration so you can apply it again with a single click.`
+  saveStatusTargetType.innerText = statusDraft.targetType
+  saveStatusTargetName.innerText = statusDraft.targetName
+  renderStatusSummary(getStatusPreviewItems(statusDraft), saveStatusSummary, 'status-modal-summary-item')
+  modal.style.display = 'block'
+  saveStatusNameInput.focus()
+  saveStatusNameInput.select()
+}
+
+async function saveStatus () {
+  const status = pendingStatusDraft || JSON.parse(saveStatusHiddenInput.value)
+  const name = saveStatusNameInput.value.trim()
+  if (!name) return alert('Specify a name please')
+
+  saveStatusConfirmButton.disabled = true
+  saveStatusConfirmButton.innerText = 'Saving...'
+
+  try {
+    await window.dataProcessing.addStatus({
+      ...status,
+      name
+    })
+    alert('Status successfully saved')
+    closeModal()
+    location.reload()
+  } catch (error) {
+    alert('There was an error saving the preset.')
+    saveStatusConfirmButton.disabled = false
+    saveStatusConfirmButton.innerText = 'Save preset'
+  }
+}
+
+saveStatusCloseButton.addEventListener('click', closeModal)
+saveStatusCancelButton.addEventListener('click', closeModal)
+saveStatusConfirmButton.addEventListener('click', async () => await saveStatus())
+saveStatusNameInput.addEventListener('keydown', async (event) => {
+  if (event.key === 'Enter') {
+    await saveStatus()
+  }
+})
+window.addEventListener('click', (event) => {
   if (event.target === modal) {
     closeModal()
   }
-}
+})
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && modal.style.display === 'block') {
+    closeModal()
+  }
+})
 
 let storedBulbs
 let favStatus
@@ -54,38 +178,7 @@ let favStatus
   favStatus = await window.dataProcessing.getStatus()
   if (favStatus.length === 0) document.querySelector('.fav-status-container').remove()
   favStatus.forEach(status => {
-    const statusItem = document.createElement('button')
-    statusItem.className = 'status'
-    statusItem.innerText = status.name
-
-    const deleteBtn = document.createElement('img')
-    deleteBtn.src = '../public/delete-icon.svg'
-    deleteBtn.alt = 'Delete saved status'
-    deleteBtn.className = 'delete-status-button'
-    deleteBtn.onclick = async (event) => {
-      event.stopPropagation()
-      const isConfirmed = confirm(`Are you sure you want to delete "${status.name}"?`)
-      if (isConfirmed) {
-        try {
-          await window.dataProcessing.removeStatus(status.id)
-          statusItem.remove()
-        } catch (error) {
-          alert('There was an error deleting the status.')
-        }
-      }
-    }
-    statusItem.appendChild(deleteBtn)
-
-    statusItem.addEventListener('click', async () => {
-      let response
-      try {
-        await window.bulbNetworking.setStatus(status.ip, status)
-      } catch (error) {
-        alert('there was an error')
-      }
-      console.log(response)
-    })
-    favsContainer.appendChild(statusItem)
+    favsContainer.appendChild(createSavedStatusCard(status))
   })
 
   addRoomButton.addEventListener('click', async () => {
@@ -114,6 +207,119 @@ function populateList ({ allItems, selectedItemsMac }) {
     listItem.append(item.name)
     valuesList.appendChild(listItem)
   })
+}
+
+function getStatusMetaLabel (status) {
+  const targetType = status.targetType === 'room' ? 'Room' : 'Bulb'
+  const bulbsAmount = Array.isArray(status.bulbs) ? status.bulbs.length : 0
+  if (status.targetType === 'room' && bulbsAmount > 0) {
+    return `${targetType} • ${bulbsAmount} bulbs`
+  }
+  return targetType
+}
+
+function buildStatusDraft ({
+  entity,
+  isRoom,
+  roomBulbs,
+  bulbSwitch,
+  modeSelector,
+  tempPicker,
+  colorPicker,
+  sceneSelector,
+  sceneSpeedRange,
+  dimmingRange
+}) {
+  const selectedMode = modeSelector.querySelector(`input[name="mode${isRoom ? entity.mac : entity.result.mac}"]:checked`).value
+  let draft = {
+    targetType: isRoom ? 'room' : 'bulb',
+    targetName: getEntityDisplayName(entity, isRoom),
+    state: bulbSwitch.checked,
+    dimming: parseInt(dimmingRange.value),
+    mode: selectedMode,
+    bulbs: roomBulbs.map(bulb => ({
+      mac: bulb.mac,
+      ip: bulb.ip,
+      name: bulb.name || 'Bulb'
+    }))
+  }
+
+  if (!isRoom && entity.ip) {
+    draft.ip = entity.ip
+  }
+
+  if (selectedMode === 'temp') {
+    draft.temp = parseInt(tempPicker.value)
+    return draft
+  }
+
+  if (selectedMode === 'color') {
+    return {
+      ...draft,
+      ...hexaToRGB(colorPicker.value)
+    }
+  }
+
+  return {
+    ...draft,
+    sceneId: parseInt(sceneSelector.value),
+    sceneSpeed: parseInt(sceneSpeedRange.value),
+    sceneName: sceneSelector.options[sceneSelector.selectedIndex]?.textContent || 'Scene'
+  }
+}
+
+function createSavedStatusCard (status) {
+  const statusItem = document.createElement('button')
+  statusItem.className = 'status'
+  statusItem.type = 'button'
+
+  const copyWrapper = document.createElement('div')
+  copyWrapper.className = 'status-copy'
+
+  const statusName = document.createElement('span')
+  statusName.className = 'status-name'
+  statusName.innerText = status.name
+
+  const statusMeta = document.createElement('span')
+  statusMeta.className = 'status-meta'
+  statusMeta.innerText = `${getStatusMetaLabel(status)}${status.targetName ? ` • ${status.targetName}` : ''}`
+
+  const statusTags = document.createElement('div')
+  statusTags.className = 'status-tags'
+  renderStatusSummary(getStatusPreviewItems(status), statusTags, 'status-tag')
+
+  copyWrapper.appendChild(statusName)
+  copyWrapper.appendChild(statusMeta)
+  copyWrapper.appendChild(statusTags)
+
+  const deleteBtn = document.createElement('img')
+  deleteBtn.src = '../public/delete-icon.svg'
+  deleteBtn.alt = 'Delete saved status'
+  deleteBtn.className = 'delete-status-button'
+  deleteBtn.onclick = async (event) => {
+    event.stopPropagation()
+    const isConfirmed = confirm(`Are you sure you want to delete "${status.name}"?`)
+    if (isConfirmed) {
+      try {
+        await window.dataProcessing.removeStatus(status.id)
+        statusItem.remove()
+      } catch (error) {
+        alert('There was an error deleting the status.')
+      }
+    }
+  }
+
+  statusItem.appendChild(copyWrapper)
+  statusItem.appendChild(deleteBtn)
+  statusItem.addEventListener('click', async () => {
+    try {
+      await window.bulbNetworking.setStatus(status.ip, status)
+    } catch (error) {
+      alert('There was an error applying the preset.')
+    }
+  })
+
+  return statusItem
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -280,13 +486,16 @@ function getEntityHTML (entity, type) {
       tab.parentNode.removeChild(tab)
     })
     bulbTemplate.querySelector('.dimming').remove()
-    bulbTemplate.querySelector('.save-status-button').remove()
     bulbTemplate.querySelector('.bulb-switch').remove()
     bulbTemplate.querySelector('.mode-selector').remove()
     bulbTemplate.style.justifyContent = ''
     const noBulbMessage = document.createElement('p')
     noBulbMessage.innerHTML = "This room doesn't have any bulbs"
     bulbTemplate.insertBefore(noBulbMessage, bulbTemplate.querySelector('.floating-buttons'))
+
+    const saveStatusButton = bulbTemplate.querySelector('.save-status-button')
+    saveStatusButton.disabled = true
+    saveStatusButton.title = 'Add bulbs before saving a room preset'
 
     const addBulbsButton = bulbTemplate.querySelector('.add-bulb-button')
     addBulbsButton.addEventListener('click', async (e) => {
@@ -305,6 +514,7 @@ function getEntityHTML (entity, type) {
     const sceneSelector = bulbTemplate.querySelector('#scene-selector')
     const sceneSpeedRange = bulbTemplate.querySelector('.speed-range')
     const dimmingRange = bulbTemplate.querySelector('.dimming-range')
+    const saveStatusButton = bulbTemplate.querySelector('.floating-buttons .save-status-button')
 
     if (!isRoom && (entity.result.r || entity.result.g || entity.result.b)) {
       colorPicker.value = rgbToHex(entity.result.r, entity.result.g, entity.result.b)
@@ -347,7 +557,7 @@ function getEntityHTML (entity, type) {
     sceneInput.value = 'scene'
     sceneInput.id = 'scene' + entityId
     sceneInput.name = 'mode' + entityId
-    sceneInput.checked = !isRoom && entity.result.scene
+    sceneInput.checked = !isRoom && !!entity.result.sceneId
     const sceneLabel = document.createElement('label')
     sceneLabel.htmlFor = 'scene' + entityId
     sceneLabel.innerHTML = '<img class="tab-selector" src="../public/scene-picker.svg" alt="Scene Picker tab">'
@@ -441,34 +651,22 @@ function getEntityHTML (entity, type) {
       bulbSwitch.checked = true
     })
 
-    if (!isRoom) {
-      const saveStatusButton = bulbTemplate.querySelector('.floating-buttons .save-status-button')
-      saveStatusButton.addEventListener('click', async () => {
-        let properties = {
-          state: bulbSwitch.checked,
-          dimming: parseInt(dimmingRange.value)
-        }
-        const selectedMode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`).value
-        if (selectedMode === 'temp') {
-          properties.temp = parseInt(tempPicker.value)
-        } else if (selectedMode === 'color') {
-          properties = {
-            ...properties,
-            ...hexaToRGB(colorPicker.value)
-          }
-        } else {
-          properties = {
-            ...properties,
-            sceneId: sceneSelector.value,
-            speed: sceneSpeedRange.value
-          }
-        }
-        openModal(JSON.stringify({
-          ...properties,
-          ip: entity.ip
-        }))
-      })
+    saveStatusButton.addEventListener('click', async () => {
+      openModal(buildStatusDraft({
+        entity,
+        isRoom,
+        roomBulbs,
+        bulbSwitch,
+        modeSelector,
+        tempPicker,
+        colorPicker,
+        sceneSelector,
+        sceneSpeedRange,
+        dimmingRange
+      }))
+    })
 
+    if (!isRoom) {
       bulbTemplate.querySelector('.floating-buttons .add-bulb-button').remove()
       bulbTemplate.querySelector('.floating-buttons .delete-room-button').remove()
     }
