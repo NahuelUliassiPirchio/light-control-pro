@@ -136,7 +136,7 @@ function discoverBulbs (callback) {
       if (resolved) return
       resolved = true
       sockets.forEach(s => { try { s.close() } catch (_) {} })
-      resolve()
+      resolve([])
     }
 
     function createDiscoverySocket (port, onReady) {
@@ -206,7 +206,7 @@ async function handleGetBulbState (event, ip) {
   return JSON.parse(response)
 }
 
-async function handleSetBulbStatus (mainWindow, _event, ip, commandParams) {
+async function handleSetBulbStatus (mainWindow, _event, ip, commandParams, options = {}) {
   console.log(commandParams)
   const params = {}
 
@@ -218,7 +218,7 @@ async function handleSetBulbStatus (mainWindow, _event, ip, commandParams) {
     params.dimming = commandParams.dimming
   }
 
-  if (commandParams.r) {
+  if (commandParams.r !== undefined && commandParams.g !== undefined && commandParams.b !== undefined) {
     params.r = commandParams.r
     params.g = commandParams.g
     params.b = commandParams.b
@@ -228,10 +228,12 @@ async function handleSetBulbStatus (mainWindow, _event, ip, commandParams) {
     params.temp = commandParams.temp
   }
 
-  if (commandParams.sceneId !== 0) {
-    params.sceneId = commandParams.sceneId
-    if (commandParams.sceneSpeed !== undefined) {
-      params.speed = commandParams.sceneSpeed
+  const sceneId = commandParams.sceneId !== undefined ? Number(commandParams.sceneId) : undefined
+  if (sceneId !== undefined && sceneId !== 0) {
+    params.sceneId = sceneId
+    const sceneSpeed = commandParams.sceneSpeed ?? commandParams.speed
+    if (sceneSpeed !== undefined) {
+      params.speed = Number(sceneSpeed)
     }
   }
 
@@ -243,7 +245,9 @@ async function handleSetBulbStatus (mainWindow, _event, ip, commandParams) {
   const messageString = JSON.stringify(message)
   try {
     const response = await sendCommandToBulb(ip, messageString)
-    mainWindow.webContents.send('updatedBulbs', true)
+    if (!options.skipUiRefresh && mainWindow) {
+      mainWindow.webContents.send('updatedBulbs', true)
+    }
     console.log('Command response:', response)
     return JSON.parse(response)
   } catch (error) {

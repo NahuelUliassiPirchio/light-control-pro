@@ -26,13 +26,27 @@
         </button>
       </div>
     </div>
-    <div id="save-status-modal">
-        <span>&times;</span>
-        <h2>Enter status name</h2>
-        <input type="text" id="nameInput">
-        <br><br>
+    <div id="save-status-modal" class="status-modal-overlay">
+      <div class="status-modal-card" role="dialog" aria-modal="true" aria-labelledby="save-status-title">
+        <button type="button" id="save-status-close" class="status-modal-close" aria-label="Close save preset modal">&times;</button>
+        <p class="status-modal-eyebrow">Save preset</p>
+        <h2 id="save-status-title">Save current state</h2>
+        <p id="save-status-description" class="status-modal-description">Store the current bulb or room configuration for quick reuse.</p>
+        <div class="status-modal-preview">
+          <div class="status-modal-preview-header">
+            <span id="save-status-target-type" class="status-modal-target-badge">Bulb</span>
+            <strong id="save-status-target-name">Current target</strong>
+          </div>
+          <div id="save-status-summary" class="status-modal-summary"></div>
+        </div>
+        <label class="status-modal-label" for="nameInput">Preset name</label>
+        <input type="text" id="nameInput" maxlength="40" placeholder="e.g. Evening warm light">
         <input type="hidden" id="hiddenInput" value="">
-        <button>Save</button>
+        <div class="status-modal-actions">
+          <button type="button" id="save-status-cancel" class="secondary-button">Cancel</button>
+          <button type="button" id="save-status-confirm">Save preset</button>
+        </div>
+      </div>
     </div>
     <div id="myModal" class="modal">
         <div class="modal-content">
@@ -42,7 +56,7 @@
         </div>
     </div>
     <div class="fav-status-container">
-      <h2 class="title" id="save-status-button">Saved status</h1>
+      <h2 class="title" id="save-status-button">Saved status</h2>
       <div id="fav-status"></div>
     </div>
     <template id="bulb-template">
