@@ -373,15 +373,91 @@ let audioContext = null
 let animFrameId = null
 let lastCommandTime = 0
 const THROTTLE_MS = 200
+let audioTargetBulbs = []
 
 const audioButton = document.getElementById('audio-button')
+const audioSyncModal = document.getElementById('audio-sync-modal')
 
-audioButton.addEventListener('click', async () => {
+audioButton.addEventListener('click', () => {
   if (audioActive) {
     stopAudioMode()
   } else {
-    await startAudioMode()
+    openAudioSyncModal()
   }
+})
+
+function openAudioSyncModal () {
+  const list = document.getElementById('audio-sync-list')
+  list.innerHTML = ''
+
+  const rooms = (storedBulbs || []).filter(b => b.bulbs)
+  const bulbs = (storedBulbs || []).filter(b => b.ip && !b.bulbs)
+
+  ;[...rooms, ...bulbs].forEach(entity => {
+    const isRoom = !!entity.bulbs
+    const li = document.createElement('li')
+    const label = document.createElement('label')
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    checkbox.checked = true
+    checkbox.value = entity.mac
+    checkbox.dataset.entityType = isRoom ? 'room' : 'bulb'
+
+    const nameSpan = document.createElement('span')
+    nameSpan.textContent = entity.name || (isRoom ? 'Room' : 'Bulb')
+
+    const badge = document.createElement('span')
+    badge.className = isRoom ? 'audio-sync-type-badge room' : 'audio-sync-type-badge'
+    badge.textContent = isRoom ? `Room · ${entity.bulbs.length}` : 'Bulb'
+
+    label.appendChild(checkbox)
+    label.appendChild(nameSpan)
+    label.appendChild(badge)
+    li.appendChild(label)
+    list.appendChild(li)
+  })
+
+  audioSyncModal.style.display = 'block'
+}
+
+function closeAudioSyncModal () {
+  audioSyncModal.style.display = 'none'
+}
+
+document.getElementById('audio-sync-close').addEventListener('click', closeAudioSyncModal)
+document.getElementById('audio-sync-cancel').addEventListener('click', closeAudioSyncModal)
+audioSyncModal.addEventListener('click', e => { if (e.target === audioSyncModal) closeAudioSyncModal() })
+
+document.getElementById('audio-sync-confirm').addEventListener('click', async () => {
+  const checkboxes = [...document.querySelectorAll('#audio-sync-list input[type="checkbox"]:checked')]
+  const selectedMacs = new Set(checkboxes.map(cb => cb.value))
+  const selectedTypes = Object.fromEntries(checkboxes.map(cb => [cb.value, cb.dataset.entityType]))
+
+  const resolved = []
+  const added = new Set()
+
+  selectedMacs.forEach(mac => {
+    if (selectedTypes[mac] === 'room') {
+      const room = storedBulbs.find(b => b.mac === mac && b.bulbs)
+      if (room) {
+        room.bulbs.forEach(bulbMac => {
+          if (!added.has(bulbMac)) {
+            const bulb = storedBulbs.find(b => b.mac === bulbMac && b.ip)
+            if (bulb) { resolved.push(bulb); added.add(bulbMac) }
+          }
+        })
+      }
+    } else {
+      if (!added.has(mac)) {
+        const bulb = storedBulbs.find(b => b.mac === mac && b.ip)
+        if (bulb) { resolved.push(bulb); added.add(mac) }
+      }
+    }
+  })
+
+  audioTargetBulbs = resolved
+  closeAudioSyncModal()
+  await startAudioMode()
 })
 
 async function startAudioMode () {
@@ -427,14 +503,9 @@ async function startAudioMode () {
       if (now - lastCommandTime < THROTTLE_MS) return
       lastCommandTime = now
 
-      // Send to all discovered bulbs
-      if (storedBulbs) {
-        storedBulbs
-          .filter(b => b.ip && !b.bulbs)
-          .forEach(b => {
-            window.bulbNetworking.setTemp(b.ip, temp, dimming).catch(() => {})
-          })
-      }
+      audioTargetBulbs.forEach(b => {
+        window.bulbNetworking.setTemp(b.ip, temp, dimming).catch(() => {})
+      })
     }
 
     tick()

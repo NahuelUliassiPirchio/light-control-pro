@@ -48,6 +48,19 @@
         </div>
       </div>
     </div>
+    <div id="audio-sync-modal" class="status-modal-overlay">
+      <div class="status-modal-card" role="dialog" aria-modal="true" aria-labelledby="audio-sync-title">
+        <button type="button" id="audio-sync-close" class="status-modal-close" aria-label="Close audio sync modal">&times;</button>
+        <p class="status-modal-eyebrow">Audio Reactive Mode</p>
+        <h2 id="audio-sync-title">Select targets</h2>
+        <p class="status-modal-description">Choose which bulbs or rooms will react to system audio.</p>
+        <ul id="audio-sync-list" class="audio-sync-list"></ul>
+        <div class="status-modal-actions">
+          <button type="button" id="audio-sync-cancel" class="secondary-button">Cancel</button>
+          <button type="button" id="audio-sync-confirm">Start</button>
+        </div>
+      </div>
+    </div>
     <div id="myModal" class="modal">
         <div class="modal-content">
             <ul id="valuesList"></ul>
