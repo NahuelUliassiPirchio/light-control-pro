@@ -231,7 +231,7 @@ function buildStatusDraft ({
   dimmingRange
 }) {
   const selectedMode = modeSelector.querySelector(`input[name="mode${isRoom ? entity.mac : entity.result.mac}"]:checked`).value
-  let draft = {
+  const draft = {
     targetType: isRoom ? 'room' : 'bulb',
     targetName: getEntityDisplayName(entity, isRoom),
     state: bulbSwitch.checked,
@@ -373,7 +373,11 @@ let audioContext = null
 let animFrameId = null
 let lastCommandTime = 0
 const THROTTLE_MS = 200
+const TEMP_THRESHOLD = 150 // K — minimum temp change to send command
+const DIMMING_THRESHOLD = 8 // % — minimum brightness change to send command
 let audioTargetBulbs = []
+let lastSentTemp = null
+let lastSentDimming = null
 
 const audioButton = document.getElementById('audio-button')
 const audioSyncModal = document.getElementById('audio-sync-modal')
@@ -491,7 +495,7 @@ async function startAudioMode () {
       analyser.getByteFrequencyData(dataArray)
 
       const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length
-      const bass = avg(dataArray.slice(0, 5))    // ~0-860Hz
+      const bass = avg(dataArray.slice(0, 5)) // ~0-860Hz
       const treble = avg(dataArray.slice(20, 60)) // ~3440-10320Hz
       const overall = avg(dataArray)
 
@@ -501,7 +505,14 @@ async function startAudioMode () {
 
       const now = Date.now()
       if (now - lastCommandTime < THROTTLE_MS) return
+
+      const tempChanged = lastSentTemp === null || Math.abs(temp - lastSentTemp) >= TEMP_THRESHOLD
+      const dimmingChanged = lastSentDimming === null || Math.abs(dimming - lastSentDimming) >= DIMMING_THRESHOLD
+      if (!tempChanged && !dimmingChanged) return
+
       lastCommandTime = now
+      lastSentTemp = temp
+      lastSentDimming = dimming
 
       audioTargetBulbs.forEach(b => {
         window.bulbNetworking.setTemp(b.ip, temp, dimming).catch(() => {})
@@ -521,6 +532,8 @@ function stopAudioMode () {
   if (animFrameId) cancelAnimationFrame(animFrameId)
   if (audioContext) { audioContext.close(); audioContext = null }
   if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null }
+  lastSentTemp = null
+  lastSentDimming = null
 }
 
 function getEntityHTML (entity, type) {
