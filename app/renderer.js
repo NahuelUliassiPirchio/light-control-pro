@@ -231,7 +231,7 @@ function buildStatusDraft ({
   dimmingRange
 }) {
   const selectedMode = modeSelector.querySelector(`input[name="mode${isRoom ? entity.mac : entity.result.mac}"]:checked`).value
-  let draft = {
+  const draft = {
     targetType: isRoom ? 'room' : 'bulb',
     targetName: getEntityDisplayName(entity, isRoom),
     state: bulbSwitch.checked,

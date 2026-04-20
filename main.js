@@ -5,7 +5,9 @@ const {
   Menu,
   ipcMain,
   globalShortcut,
-  nativeImage
+  nativeImage,
+  nativeTheme,
+  desktopCapturer
 } = require('electron')
 const path = require('path')
 const fs = require('fs')
@@ -31,7 +33,99 @@ const {
 
 let mainWindow
 let tray
+const isMac = process.platform === 'darwin'
 const iconPath = path.join(__dirname, './build/icons/icon.png')
+const MENU_ICONS_DIR = path.join(__dirname, './build/icons/menu')
+
+// --- Tray helpers ---
+
+let _iconCache = null
+let _iconCacheIsDark = null
+
+function getIconCache () {
+  const isDark = nativeTheme.shouldUseDarkColors
+  if (_iconCache === null || _iconCacheIsDark !== isDark) {
+    _iconCache = {}
+    _iconCacheIsDark = isDark
+  }
+  return _iconCache
+}
+
+/**
+ * Loads a menu item icon from `folder`, picking the `name_dark.png` variant
+ * when dark mode is active and falling back to `name.png` otherwise.
+ * Returns undefined (no icon) if the file doesn't exist.
+ * Icons are resized to 16×16 — the correct size for macOS menu items.
+ */
+function buildIcon (name, folder = MENU_ICONS_DIR) {
+  const cache = getIconCache()
+  if (cache[name]) return cache[name]
+
+  const isDark = nativeTheme.shouldUseDarkColors
+  const darkCandidate = path.join(folder, `${name}_dark.png`)
+  const lightCandidate = path.join(folder, `${name}.png`)
+  const filePath = isDark && fs.existsSync(darkCandidate) ? darkCandidate : lightCandidate
+
+  if (!fs.existsSync(filePath)) return undefined
+
+  const img = nativeImage.createFromPath(filePath).resize({ width: 16, height: 16 })
+  cache[name] = img
+  return img
+}
+
+function createTrayMenuTemplate (statuses) {
+  const template = []
+
+  statuses.forEach(status => {
+    template.push({
+      label: status.name,
+      icon: buildIcon('bulb'),
+      click: () => applySavedStatus(status)
+        .catch(err => console.error('Error setting bulb status:', err))
+    })
+  })
+
+  if (statuses.length > 0) {
+    template.push({ type: 'separator' })
+  }
+
+  template.push(
+    { label: 'Open app', icon: buildIcon('open'), click: () => mainWindow.show() },
+    { label: 'Quit', icon: buildIcon('quit'), role: 'quit' }
+  )
+
+  return template
+}
+
+function cleanupTray () {
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
+}
+
+async function createTray () {
+  cleanupTray()
+
+  const statuses = await handleGetData('', path.join(userDataFilePath, 'status.json'))
+
+  const trayIcon = isMac
+    ? path.join(__dirname, './build/icons/processing.png')
+    : path.join(__dirname, './build/icons/icon.png')
+
+  const icon = nativeImage
+    .createFromPath(trayIcon)
+    .resize({ width: 28, height: 28 })
+
+  if (isMac) {
+    icon.setTemplateImage(true)
+  }
+
+  tray = new Tray(icon)
+  tray.setToolTip('Light Control Pro')
+  tray.on('click', () => mainWindow.show())
+  tray.setContextMenu(Menu.buildFromTemplate(createTrayMenuTemplate(statuses)))
+}
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -185,47 +279,12 @@ Menu.setApplicationMenu(null)
 app.on('ready', () => {
   createWindow()
   if (process.platform === 'darwin' || process.platform === 'win32') {
-    try {
-      const contextMenuTemplate = []
+    createTray().catch(err => console.error('Error creating tray:', err))
 
-      handleGetData('', path.join(userDataFilePath, 'status.json'))
-        .then(statuses => {
-          statuses.forEach(status => {
-            contextMenuTemplate.push({
-              label: status.name,
-              click: () => {
-                applySavedStatus(status)
-                  .catch(error => console.error('Error setting bulb status:', error))
-              }
-            })
-          })
-
-          if (statuses.length > 0) {
-            contextMenuTemplate.push({ type: 'separator' })
-          }
-
-          contextMenuTemplate.push(
-            { label: 'Open app', click: () => mainWindow.show() },
-            { label: 'Quit', role: 'quit' }
-          )
-
-          const trayIcon = nativeImage.createFromPath(iconPath).resize({
-            width: 32, height: 32
-          })
-
-          tray = new Tray(trayIcon)
-          const contextMenu = Menu.buildFromTemplate(contextMenuTemplate)
-
-          tray.setToolTip('Light control pro')
-          tray.on('click', () => {
-            mainWindow.show()
-          })
-
-          tray.setContextMenu(contextMenu)
-        })
-        .catch(error => console.error('Error getting shortcuts data:', error))
-    } catch (error) {
-      console.error('Error during app ready:', error)
+    if (process.platform === 'darwin') {
+      nativeTheme.on('updated', () => {
+        createTray().catch(err => console.error('Error rebuilding tray on theme change:', err))
+      })
     }
 
     app.on('activate', () => {
