@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('bulbNetworking', {
   onBulbDiscovered: (callback) => ipcRenderer.on('bulbDiscovered', (event, arg) => callback(arg))
 })
 
+contextBridge.exposeInMainWorld('appNavigation', {
+  onNavigateToConfig: (callback) => ipcRenderer.on('navigate-to-config', (_event) => callback())
+})
+
 contextBridge.exposeInMainWorld('dataProcessing', {
   addStatus: (data) => ipcRenderer.invoke('addStatus', data),
   getStatus: () => ipcRenderer.invoke('getStatus'),

@@ -7,6 +7,7 @@ const addRoomButton = document.getElementById('add-room-button')
 const bulbsContainer = document.getElementById('bulbs-container')
 
 window.updateUi.onUpdatedBulbs(() => location.reload())
+window.appNavigation.onNavigateToConfig(() => { location.href = './config.html' })
 
 document.getElementById('cancelBtn').addEventListener('click', function () {
   document.getElementById('myModal').style.display = 'none'
