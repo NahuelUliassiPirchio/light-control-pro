@@ -26,6 +26,38 @@ const saveStatusNameInput = document.getElementById('nameInput')
 const saveStatusHiddenInput = document.getElementById('hiddenInput')
 let pendingStatusDraft = null
 
+const discoveredBulbStates = new Map()
+
+const SCENE_NAMES = {
+  1: 'Ocean', 2: 'Romance', 3: 'Sunset', 4: 'Party', 5: 'Fireplace',
+  6: 'Cozy', 7: 'Forest', 8: 'Pastel Colors', 9: 'Wake up', 10: 'Bedtime',
+  11: 'Warm White', 12: 'Daylight', 13: 'Cool white', 14: 'Night light',
+  15: 'Focus', 16: 'Relax', 17: 'True colors', 18: 'TV time', 19: 'Plantgrowth',
+  20: 'Spring', 21: 'Summer', 22: 'Fall', 23: 'Deepdive', 24: 'Jungle',
+  25: 'Mojito', 26: 'Club', 27: 'Christmas', 28: 'Halloween', 29: 'Candlelight',
+  30: 'Golden white', 31: 'Pulse', 32: 'Steampunk', 1000: 'Rhythm'
+}
+
+function inferBulbStateFromLive (liveResult) {
+  if (!liveResult) return { state: false, dimming: 100, mode: 'temp' }
+  const base = { state: !!liveResult.state, dimming: liveResult.dimming ?? 100 }
+  if (liveResult.sceneId > 0) {
+    return { ...base, mode: 'scene', sceneId: liveResult.sceneId,
+      sceneSpeed: liveResult.speed ?? 100,
+      sceneName: SCENE_NAMES[liveResult.sceneId] || 'Scene' }
+  }
+  if (liveResult.r > 0 || liveResult.g > 0 || liveResult.b > 0) {
+    return { ...base, mode: 'color', r: liveResult.r, g: liveResult.g, b: liveResult.b }
+  }
+  return { ...base, mode: 'temp', temp: liveResult.temp ?? 2700 }
+}
+
+function isPerBulbRoomPreset (status) {
+  return status.targetType === 'room' &&
+    Array.isArray(status.bulbs) && status.bulbs.length > 0 &&
+    status.bulbs[0].state !== undefined
+}
+
 function closeModal () {
   modal.style.display = 'none'
   saveStatusNameInput.value = ''
@@ -111,6 +143,55 @@ function renderStatusSummary (items, container, className) {
   })
 }
 
+function renderPerBulbRoomSummary (bulbs, container) {
+  container.innerHTML = ''
+  bulbs.forEach(bulbState => {
+    const row = document.createElement('div')
+    row.className = 'per-bulb-row'
+    const nameSpan = document.createElement('span')
+    nameSpan.className = 'per-bulb-name'
+    nameSpan.innerText = bulbState.name || 'Bulb'
+    row.appendChild(nameSpan)
+    const chipsWrap = document.createElement('div')
+    chipsWrap.className = 'per-bulb-chips'
+    renderStatusSummary(getStatusPreviewItems(bulbState), chipsWrap, 'status-modal-summary-item')
+    row.appendChild(chipsWrap)
+    container.appendChild(row)
+  })
+}
+
+function renderPerBulbCardTags (bulbs, container) {
+  container.innerHTML = ''
+  const onCount = bulbs.filter(b => b.state).length
+  const summaryChip = document.createElement('span')
+  summaryChip.className = 'status-tag'
+  summaryChip.innerText = `${onCount} on / ${bulbs.length - onCount} off`
+  container.appendChild(summaryChip)
+  bulbs.slice(0, 2).forEach(b => {
+    const items = getStatusPreviewItems(b)
+    const mainItem = items.find(i => i.swatchColor) || items[items.length - 1]
+    if (!mainItem) return
+    const chip = document.createElement('span')
+    chip.className = 'status-tag'
+    if (mainItem.swatchColor) {
+      const swatch = document.createElement('span')
+      swatch.className = 'status-summary-swatch'
+      swatch.style.background = mainItem.swatchColor
+      chip.appendChild(swatch)
+    }
+    const label = document.createElement('span')
+    label.innerText = `${b.name}: ${mainItem.label}`
+    chip.appendChild(label)
+    container.appendChild(chip)
+  })
+  if (bulbs.length > 2) {
+    const more = document.createElement('span')
+    more.className = 'status-tag'
+    more.innerText = `+${bulbs.length - 2} more`
+    container.appendChild(more)
+  }
+}
+
 function openModal (statusDraft) {
   pendingStatusDraft = statusDraft
   saveStatusHiddenInput.value = JSON.stringify(statusDraft)
@@ -118,7 +199,11 @@ function openModal (statusDraft) {
   saveStatusDescription.innerText = `Store the current ${statusDraft.targetType} configuration so you can apply it again with a single click.`
   saveStatusTargetType.innerText = statusDraft.targetType
   saveStatusTargetName.innerText = statusDraft.targetName
-  renderStatusSummary(getStatusPreviewItems(statusDraft), saveStatusSummary, 'status-modal-summary-item')
+  if (isPerBulbRoomPreset(statusDraft)) {
+    renderPerBulbRoomSummary(statusDraft.bulbs, saveStatusSummary)
+  } else {
+    renderStatusSummary(getStatusPreviewItems(statusDraft), saveStatusSummary, 'status-modal-summary-item')
+  }
   modal.style.display = 'block'
   saveStatusNameInput.focus()
   saveStatusNameInput.select()
@@ -231,22 +316,28 @@ function buildStatusDraft ({
   sceneSpeedRange,
   dimmingRange
 }) {
-  const selectedMode = modeSelector.querySelector(`input[name="mode${isRoom ? entity.mac : entity.result.mac}"]:checked`).value
+  if (isRoom) {
+    return {
+      targetType: 'room',
+      targetName: getEntityDisplayName(entity, true),
+      bulbs: roomBulbs.map(bulb => ({
+        mac: bulb.mac,
+        ip: bulb.ip,
+        name: bulb.name || 'Bulb',
+        ...inferBulbStateFromLive(discoveredBulbStates.get(bulb.mac))
+      }))
+    }
+  }
+
+  const selectedMode = modeSelector.querySelector(`input[name="mode${entity.result.mac}"]:checked`).value
   const draft = {
-    targetType: isRoom ? 'room' : 'bulb',
-    targetName: getEntityDisplayName(entity, isRoom),
+    targetType: 'bulb',
+    targetName: getEntityDisplayName(entity, false),
     state: bulbSwitch.checked,
     dimming: parseInt(dimmingRange.value),
     mode: selectedMode,
-    bulbs: roomBulbs.map(bulb => ({
-      mac: bulb.mac,
-      ip: bulb.ip,
-      name: bulb.name || 'Bulb'
-    }))
-  }
-
-  if (!isRoom && entity.ip) {
-    draft.ip = entity.ip
+    bulbs: [],
+    ip: entity.ip
   }
 
   if (selectedMode === 'temp') {
@@ -287,7 +378,11 @@ function createSavedStatusCard (status) {
 
   const statusTags = document.createElement('div')
   statusTags.className = 'status-tags'
-  renderStatusSummary(getStatusPreviewItems(status), statusTags, 'status-tag')
+  if (isPerBulbRoomPreset(status)) {
+    renderPerBulbCardTags(status.bulbs, statusTags)
+  } else {
+    renderStatusSummary(getStatusPreviewItems(status), statusTags, 'status-tag')
+  }
 
   copyWrapper.appendChild(statusName)
   copyWrapper.appendChild(statusMeta)
@@ -327,6 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
   window.bulbNetworking.startDiscovery()
 
   window.bulbNetworking.onBulbDiscovered(async (bulbData) => {
+    if (bulbData.result?.mac) {
+      discoveredBulbStates.set(bulbData.result.mac, bulbData.result)
+    }
     if (storedBulbs) {
       const bulb = storedBulbs.filter(bulb => bulbData.result.mac === bulb.mac)
       if (bulb.length > 0) {

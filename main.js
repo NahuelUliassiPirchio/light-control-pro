@@ -92,6 +92,39 @@ function startOnStartup (value) {
 }
 
 async function applySavedStatus (status) {
+  const isPerBulb = status.targetType === 'room' &&
+    Array.isArray(status.bulbs) && status.bulbs.length > 0 &&
+    status.bulbs[0].state !== undefined
+
+  if (isPerBulb) {
+    const targets = status.bulbs
+      .filter(b => b.ip)
+      .filter((t, i, arr) => arr.findIndex(x => x.ip === t.ip) === i)
+
+    if (targets.length === 0) {
+      throw new Error('Saved status does not contain any reachable bulbs.')
+    }
+
+    const results = await Promise.allSettled(
+      targets.map(bulbState =>
+        bulbState.state === false
+          ? handleSetBulb('', bulbState.ip, false)
+          : handleSetBulbStatus(mainWindow, '', bulbState.ip, bulbState, { skipUiRefresh: true })
+      )
+    )
+
+    if (mainWindow) {
+      mainWindow.webContents.send('updatedBulbs', true)
+    }
+
+    const rejectedResult = results.find(result => result.status === 'rejected')
+    if (rejectedResult) {
+      throw rejectedResult.reason
+    }
+
+    return results
+  }
+
   const targets = Array.isArray(status.bulbs) && status.bulbs.length > 0
     ? status.bulbs.filter(bulb => bulb.ip)
     : (status.ip ? [{ ip: status.ip }] : [])
@@ -364,7 +397,6 @@ app.on('ready', () => {
       const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 })
       tray = new Tray(trayIcon)
       tray.setToolTip('Light Control Pro')
-      tray.on('click', () => mainWindow?.show())
       tray.on('right-click', () => buildAndShowMenu().catch(console.error))
     } catch (error) {
       console.error('Error during app ready:', error)
