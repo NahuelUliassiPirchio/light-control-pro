@@ -23,7 +23,7 @@ html, body {
 }
 body {
   background: rgb(52,54,80);
-  background: linear-gradient(180deg, rgba(52,54,80,1) 0%, rgba(12,12,20,1) 66%);
+  background: linear-gradient(180deg, rgba(52,54,80,1) 0%, rgba(12,12,20,1) 100%);
   color: var(--text-color);
   font-family: var(--text-font);
   display: flex;

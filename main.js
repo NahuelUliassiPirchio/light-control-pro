@@ -5,7 +5,8 @@ const {
   Menu,
   ipcMain,
   globalShortcut,
-  nativeImage
+  nativeImage,
+  nativeTheme
 } = require('electron')
 const path = require('path')
 const fs = require('fs')
@@ -33,7 +34,7 @@ let mainWindow
 let tray
 const iconPath = path.join(__dirname, './build/icons/icon.png')
 
-const createWindow = () => {
+const createWindow = (showOnStart = true) => {
   mainWindow = new BrowserWindow({
     width: 600,
     height: 600,
@@ -43,11 +44,16 @@ const createWindow = () => {
       preload: path.join(__dirname, 'app/preload.js')
     },
     frame: false,
-    maximizable: false
+    maximizable: false,
+    show: false
   })
 
   mainWindow.loadFile(path.join(__dirname, 'app/index.html'))
   // mainWindow.webContents.openDevTools()
+
+  if (showOnStart) {
+    mainWindow.once('ready-to-show', () => mainWindow.show())
+  }
 
   mainWindow.on('close', (event) => {
     if (!app.isQuiting) {
@@ -216,25 +222,38 @@ handleGetData(null, shortcutsFilePath).then(e =>
   })
 )
 
+/** Placeholders resolved in resolveMenuSvg() so tray icons contrast with light/dark system menus. */
 const MENU_SVGS = {
-  gear: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#374151" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>',
-  power: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#374151" d="M13,3H11V13H13V3M17.83,5.17L16.41,6.59C17.99,7.86 19,9.81 19,12A7,7 0 0,1 12,19A7,7 0 0,1 5,12C5,9.81 6.01,7.86 7.58,6.58L6.17,5.17C4.23,6.82 3,9.26 3,12A9,9 0 0,0 12,21A9,9 0 0,0 21,12C21,9.26 19.77,6.82 17.83,5.17Z"/></svg>',
-  bookmark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#374151" d="M17,3H7A2,2 0 0,0 5,5V21L12,18L19,21V5C19,3.89 18.1,3 17,3Z"/></svg>',
-  bulb: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#374151" d="M12,2A7,7 0 0,1 19,9C19,11.38 17.81,13.47 16,14.74V17A1,1 0 0,1 15,18H9A1,1 0 0,1 8,17V14.74C6.19,13.47 5,11.38 5,9A7,7 0 0,1 12,2M9,21V20H15V21A1,1 0 0,1 14,22H10A1,1 0 0,1 9,21M12,4A5,5 0 0,0 7,9C7,11.05 8.23,12.81 10,13.58V16H14V13.58C15.77,12.81 17,11.05 17,9A5,5 0 0,0 12,4Z"/></svg>',
-  home: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#374151" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/></svg>',
-  circleOn: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#22c55e"/></svg>',
-  circleOff: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#9ca3af"/></svg>',
-  eye: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#374151" d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z"/></svg>',
-  eyeOff: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#374151" d="M11.83,9L15,12.16C15,12.11 15,12.05 15,12A3,3 0 0,0 12,9C11.94,9 11.89,9 11.83,9M7.53,9.8L9.08,11.35C9.03,11.56 9,11.77 9,12A3,3 0 0,0 12,15C12.22,15 12.44,14.97 12.65,14.92L14.2,16.47C13.53,16.8 12.79,17 12,17A5,5 0 0,1 7,12C7,11.21 7.2,10.47 7.53,9.8M2,4.27L4.28,6.55L4.73,7C3.08,8.3 1.78,10.02 1,12C2.73,16.39 7,19.5 12,19.5C13.55,19.5 15.03,19.2 16.38,18.66L16.81,19.08L19.73,22L21,20.73L3.27,3M12,4.5C17,4.5 21.27,7.61 23,12C22.18,14.08 20.79,15.88 19,17.19L17.58,15.76C18.95,14.82 20.1,13.54 20.82,12C19.17,8.64 15.76,6.5 12,6.5C10.91,6.5 9.84,6.68 8.84,7L7.3,5.47C8.74,4.85 10.33,4.5 12,4.5Z"/></svg>'
+  gear: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="__MONO__" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>',
+  power: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="__MONO__" d="M13,3H11V13H13V3M17.83,5.17L16.41,6.59C17.99,7.86 19,9.81 19,12A7,7 0 0,1 12,19A7,7 0 0,1 5,12C5,9.81 6.01,7.86 7.58,6.58L6.17,5.17C4.23,6.82 3,9.26 3,12A9,9 0 0,0 12,21A9,9 0 0,0 21,12C21,9.26 19.77,6.82 17.83,5.17Z"/></svg>',
+  bookmark: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="__MONO__" d="M17,3H7A2,2 0 0,0 5,5V21L12,18L19,21V5C19,3.89 18.1,3 17,3Z"/></svg>',
+  bulb: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="__MONO__" d="M12,2A7,7 0 0,1 19,9C19,11.38 17.81,13.47 16,14.74V17A1,1 0 0,1 15,18H9A1,1 0 0,1 8,17V14.74C6.19,13.47 5,11.38 5,9A7,7 0 0,1 12,2M9,21V20H15V21A1,1 0 0,1 14,22H10A1,1 0 0,1 9,21M12,4A5,5 0 0,0 7,9C7,11.05 8.23,12.81 10,13.58V16H14V13.58C15.77,12.81 17,11.05 17,9A5,5 0 0,0 12,4Z"/></svg>',
+  home: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="__MONO__" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/></svg>',
+  circleOn: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="__ON__"/></svg>',
+  circleOff: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="__OFF__"/></svg>',
+  eye: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="__MONO__" d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z"/></svg>',
+  eyeOff: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="__MONO__" d="M11.83,9L15,12.16C15,12.11 15,12.05 15,12A3,3 0 0,0 12,9C11.94,9 11.89,9 11.83,9M7.53,9.8L9.08,11.35C9.03,11.56 9,11.77 9,12A3,3 0 0,0 12,15C12.22,15 12.44,14.97 12.65,14.92L14.2,16.47C13.53,16.8 12.79,17 12,17A5,5 0 0,1 7,12C7,11.21 7.2,10.47 7.53,9.8M2,4.27L4.28,6.55L4.73,7C3.08,8.3 1.78,10.02 1,12C2.73,16.39 7,19.5 12,19.5C13.55,19.5 15.03,19.2 16.38,18.66L16.81,19.08L19.73,22L21,20.73L3.27,3M12,4.5C17,4.5 21.27,7.61 23,12C22.18,14.08 20.79,15.88 19,17.19L17.58,15.76C18.95,14.82 20.1,13.54 20.82,12C19.17,8.64 15.76,6.5 12,6.5C10.91,6.5 9.84,6.68 8.84,7L7.3,5.47C8.74,4.85 10.33,4.5 12,4.5Z"/></svg>'
+}
+
+function resolveMenuSvg (key) {
+  const dark = nativeTheme.shouldUseDarkColors
+  const mono = dark ? '#f3f4f6' : '#111827'
+  const on = dark ? '#4ade80' : '#16a34a'
+  const off = dark ? '#cbd5e1' : '#475569'
+  return MENU_SVGS[key]
+    .replace(/__MONO__/g, mono)
+    .replace(/__ON__/g, on)
+    .replace(/__OFF__/g, off)
 }
 
 const menuIcons = {}
 
 async function getMenuIcon (key) {
-  if (key in menuIcons) return menuIcons[key] || undefined
+  const themeKey = `${key}:${nativeTheme.shouldUseDarkColors ? 'd' : 'l'}`
+  if (themeKey in menuIcons) return menuIcons[themeKey] || undefined
   if (!mainWindow || mainWindow.isDestroyed()) return undefined
   try {
-    const b64 = Buffer.from(MENU_SVGS[key]).toString('base64')
+    const b64 = Buffer.from(resolveMenuSvg(key)).toString('base64')
     const script = `new Promise((resolve) => {
       const c = Object.assign(document.createElement('canvas'), {width:16,height:16})
       const img = new Image()
@@ -244,11 +263,11 @@ async function getMenuIcon (key) {
     })`
     const dataUrl = await mainWindow.webContents.executeJavaScript(script)
     const icon = dataUrl ? nativeImage.createFromDataURL(dataUrl) : null
-    menuIcons[key] = (icon && !icon.isEmpty()) ? icon : null
+    menuIcons[themeKey] = (icon && !icon.isEmpty()) ? icon : null
   } catch (_) {
-    menuIcons[key] = null
+    menuIcons[themeKey] = null
   }
-  return menuIcons[key] || undefined
+  return menuIcons[themeKey] || undefined
 }
 
 function resolveRoomIPs (room, allBulbs) {
@@ -390,8 +409,17 @@ async function buildAndShowMenu () {
 }
 
 Menu.setApplicationMenu(null)
-app.on('ready', () => {
-  createWindow()
+app.on('ready', async () => {
+  let showOnStart = true
+  try {
+    const settings = await handleGetData('', settingsFilePath)
+    if (settings) {
+      const openSetting = settings.find(s => s.id === 'openOnStartup')
+      if (openSetting) showOnStart = openSetting.openOnStartup
+    }
+  } catch (_) {}
+
+  createWindow(showOnStart)
   if (process.platform === 'darwin' || process.platform === 'win32') {
     try {
       const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 })

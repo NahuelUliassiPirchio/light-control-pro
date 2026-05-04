@@ -20,44 +20,59 @@
         </button>
       </div>
     </div>
-    <div class="config-topbar">
-      <button class="back-button" id="backButton" title="Back">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-      </button>
-      <h1 class="main-title">Configuration</h1>
+    <div class="content">
+      <div class="config-topbar">
+        <button class="back-button" id="backButton" title="Back">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <h1 class="main-title">Configuration</h1>
+      </div>
+
+      <section class="config-card">
+          <div class="config-card-header">
+              <div>
+                  <h2 class="config-title">Autostart</h2>
+                  <p class="comment-subtitle">Run automatically when your device starts.</p>
+              </div>
+              <label class="bulb-switch">
+                  <input id="runOnStartup" name="runOnStartup" type="checkbox">
+                  <span class="slider round"></span>
+              </label>
+          </div>
+      </section>
+
+      <section class="config-card">
+          <div class="config-card-header">
+              <div>
+                  <h2 class="config-title">Open window on startup</h2>
+                  <p class="comment-subtitle">Show the main window when the application launches.</p>
+              </div>
+              <label class="bulb-switch">
+                  <input id="openOnStartup" name="openOnStartup" type="checkbox">
+                  <span class="slider round"></span>
+              </label>
+          </div>
+      </section>
+
+      <section class="config-card">
+          <h2 class="config-title">Shortcuts</h2>
+          <p class="comment-subtitle">Assign a keyboard shortcut to a saved status.</p>
+
+          <div class="recorder-container">
+              <select name="states" id="statesList">
+                  <option selected disabled>Select a saved status</option>
+              </select>
+              <div id="editIndicator" class="edit-indicator" style="display: none;"></div>
+              <button type="button" id="recordingButton">
+                  <span class="rec-dot"></span>
+                  Record
+              </button>
+          </div>
+
+          <ul id="shortcutsContainer"></ul>
+      </section>
     </div>
-
-    <section class="config-card">
-        <div class="config-card-header">
-            <div>
-                <h2 class="config-title">Autostart</h2>
-                <p class="comment-subtitle">Run automatically when your device starts.</p>
-            </div>
-            <label class="bulb-switch">
-                <input id="runOnStartup" name="runOnStartup" type="checkbox">
-                <span class="slider round"></span>
-            </label>
-        </div>
-    </section>
-
-    <section class="config-card">
-        <h2 class="config-title">Shortcuts</h2>
-        <p class="comment-subtitle">Assign a keyboard shortcut to a saved status.</p>
-
-        <div class="recorder-container">
-            <select name="states" id="statesList">
-                <option selected disabled>Select a saved status</option>
-            </select>
-            <div id="editIndicator" class="edit-indicator" style="display: none;"></div>
-            <button type="button" id="recordingButton">
-                <span class="rec-dot"></span>
-                Record
-            </button>
-        </div>
-
-        <ul id="shortcutsContainer"></ul>
-    </section>
 </body>
 </html>
