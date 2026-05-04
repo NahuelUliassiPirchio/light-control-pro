@@ -1,12 +1,13 @@
 {
   "name": "light-control-pro",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Smart Light Controller from Your PC",
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",
     "dev": "electron --enable-logging .",
-    "build": "electron-builder --win --linux",
+    "build:win": "electron-builder --win",
+    "build:lin": "electron-builder --linux",
     "test": "echo \"Error: no test specified\" && exit 1",
     "package": "electron-forge package",
     "make": "electron-forge make"
@@ -25,7 +26,8 @@
       "bulbController.js",
       "dataController.js",
       "package.json",
-      "public"
+      "public",
+      "build/icons/**/*"
     ],
     "extraResources": [
       {
