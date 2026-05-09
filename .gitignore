@@ -4,3 +4,4 @@
 out/
 /dist/
 .claude
+.DS_Store

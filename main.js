@@ -11,14 +11,12 @@ const {
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
+const { exec } = require('child_process')
 const {
   handleSetBulbStatus,
-  handleChangeColor,
   handleGetBulbs,
   handleGetBulbState,
-  handleSetBulb,
-  handleSetScene,
-  handleSetTemp
+  closeCmdSocket
 } = require('./bulbController.js')
 const {
   handleAddData,
@@ -29,6 +27,27 @@ const {
   handleAddOrUpdateStoredBulb,
   handleRemoveStoredBulb
 } = require('./dataController.js')
+
+function getArpTable () {
+  return new Promise((resolve) => {
+    const cmd = process.platform === 'win32' ? 'arp -a' : 'arp -a'
+    exec(cmd, (err, stdout) => {
+      if (err) { resolve(new Map()); return }
+      const table = new Map()
+      for (const line of stdout.split('\n')) {
+        // macOS/Linux: "? (192.168.0.117) at a8:bb:50:bb:e4:72 on en0"
+        // Windows:     "192.168.0.117    a8-bb-50-bb-e4-72    dynamic"
+        const match = line.match(/\(?([\d.]+)\)?\s+at\s+([\da-fA-F:]+)/) ||
+                      line.match(/([\d.]+)\s+([\da-fA-F-]+)\s+dynamic/)
+        if (!match) continue
+        const ip = match[1]
+        const mac = match[2].replace(/[:-]/g, '').toLowerCase()
+        if (mac && mac !== 'ffffffffffff') table.set(mac, ip)
+      }
+      resolve(table)
+    })
+  })
+}
 
 let mainWindow
 let tray
@@ -114,7 +133,7 @@ async function applySavedStatus (status) {
     const results = await Promise.allSettled(
       targets.map(bulbState =>
         bulbState.state === false
-          ? handleSetBulb('', bulbState.ip, false)
+          ? handleSetBulbStatus(mainWindow, '', bulbState.ip, { state: false }, { skipUiRefresh: true })
           : handleSetBulbStatus(mainWindow, '', bulbState.ip, bulbState, { skipUiRefresh: true })
       )
     )
@@ -308,13 +327,13 @@ async function buildAndShowMenu () {
       label: 'All lights ON',
       ...(circleOnIcon && { icon: circleOnIcon }),
       enabled: allIPs.length > 0,
-      click: () => Promise.allSettled(allIPs.map(ip => handleSetBulb('', ip, true))).catch(console.error)
+      click: () => Promise.allSettled(allIPs.map(ip => handleSetBulbStatus(mainWindow, '', ip, { state: true }, { skipUiRefresh: true }))).catch(console.error)
     },
     {
       label: 'All lights OFF',
       ...(circleOffIcon && { icon: circleOffIcon }),
       enabled: allIPs.length > 0,
-      click: () => Promise.allSettled(allIPs.map(ip => handleSetBulb('', ip, false))).catch(console.error)
+      click: () => Promise.allSettled(allIPs.map(ip => handleSetBulbStatus(mainWindow, '', ip, { state: false }, { skipUiRefresh: true }))).catch(console.error)
     },
     { type: 'separator' }
   ]
@@ -338,8 +357,8 @@ async function buildAndShowMenu () {
           ...(homeIcon && { icon: homeIcon }),
           submenu: ips.length > 0
             ? [
-                { label: 'Turn On', click: () => Promise.allSettled(ips.map(ip => handleSetBulb('', ip, true))).catch(console.error) },
-                { label: 'Turn Off', click: () => Promise.allSettled(ips.map(ip => handleSetBulb('', ip, false))).catch(console.error) },
+                { label: 'Turn On', click: () => Promise.allSettled(ips.map(ip => handleSetBulbStatus(mainWindow, '', ip, { state: true }, { skipUiRefresh: true }))).catch(console.error) },
+                { label: 'Turn Off', click: () => Promise.allSettled(ips.map(ip => handleSetBulbStatus(mainWindow, '', ip, { state: false }, { skipUiRefresh: true }))).catch(console.error) },
                 { type: 'separator' },
                 { label: 'Brightness', submenu: brightnessSubmenu(ips) }
               ]
@@ -356,8 +375,8 @@ async function buildAndShowMenu () {
           label: bulb.name || 'Bulb',
           ...(bulbIcon && { icon: bulbIcon }),
           submenu: [
-            { label: 'Turn On', click: () => handleSetBulb('', bulb.ip, true).catch(console.error) },
-            { label: 'Turn Off', click: () => handleSetBulb('', bulb.ip, false).catch(console.error) },
+            { label: 'Turn On', click: () => handleSetBulbStatus(mainWindow, '', bulb.ip, { state: true }, { skipUiRefresh: true }).catch(console.error) },
+            { label: 'Turn Off', click: () => handleSetBulbStatus(mainWindow, '', bulb.ip, { state: false }, { skipUiRefresh: true }).catch(console.error) },
             { type: 'separator' },
             { label: 'Brightness', submenu: brightnessSubmenu([bulb.ip]) }
           ]
@@ -422,10 +441,16 @@ app.on('ready', async () => {
   createWindow(showOnStart)
   if (process.platform === 'darwin' || process.platform === 'win32') {
     try {
-      const trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 32, height: 32 })
+      const isMac = process.platform === 'darwin'
+      const trayIconPath = isMac
+        ? path.join(__dirname, './build/icons/processing.png')
+        : iconPath
+      const trayIcon = nativeImage.createFromPath(trayIconPath).resize({ width: 28, height: 28 })
+      if (isMac) trayIcon.setTemplateImage(true)
       tray = new Tray(trayIcon)
       tray.setToolTip('Light Control Pro')
       tray.on('right-click', () => buildAndShowMenu().catch(console.error))
+      tray.on('click', () => buildAndShowMenu().catch(console.error))
     } catch (error) {
       console.error('Error during app ready:', error)
     }
@@ -449,8 +474,14 @@ app.on('ready', async () => {
   ipcMain.on('window-minimize', () => mainWindow.minimize())
   ipcMain.on('window-close', () => mainWindow.close())
 
-  ipcMain.handle('setBulb', handleSetBulb)
+  ipcMain.handle('setBulb', (_event, ip, state) =>
+    handleSetBulbStatus(null, _event, ip, { state }, { skipUiRefresh: true }))
+  let discoveryActive = false
   ipcMain.on('startDiscovery', async () => {
+    if (discoveryActive) return
+    discoveryActive = true
+    setTimeout(() => { discoveryActive = false }, 11000)
+
     const discoveredMacs = new Set()
 
     function notifyBulb (bulbData) {
@@ -461,27 +492,44 @@ app.on('ready', async () => {
     }
 
     // Broadcast discovery runs in background for 10s
-    handleGetBulbs(notifyBulb).catch(err => console.error('Broadcast discovery error:', err))
+    handleGetBulbs(notifyBulb).catch(err => console.error('Broadcast discovery error:', err.message))
 
     // Also query stored bulbs directly — catches bulbs that ignore broadcasts
     try {
       const storedBulbs = await handleGetData('', path.join(userDataFilePath, 'bulbs.json'))
-      const knownBulbs = storedBulbs.filter(b => b.ip && !b.bulbs)
+      const knownBulbs = storedBulbs.filter(b => b.mac && !b.bulbs)
+
+      const arpTable = await getArpTable()
+
       await Promise.allSettled(knownBulbs.map(async (bulb) => {
+        const mac = bulb.mac.replace(/[:-]/g, '').toLowerCase()
+        const arpIp = arpTable.get(mac)
+        const ip = arpIp || bulb.ip
+        if (!ip) {
+          console.error(`No IP for stored bulb ${bulb.name} (mac: ${bulb.mac})`)
+          return
+        }
+        if (arpIp && arpIp !== bulb.ip) {
+          console.log(`Bulb ${bulb.name} IP updated via ARP: ${bulb.ip} → ${arpIp}`)
+          await handleAddOrUpdateStoredBulb(null, { ...bulb, ip: arpIp }, path.join(userDataFilePath, 'bulbs.json'))
+        }
         try {
-          const pilotData = await handleGetBulbState(null, bulb.ip)
-          notifyBulb({ ip: bulb.ip, ...pilotData })
+          const pilotData = await handleGetBulbState(null, ip)
+          notifyBulb({ ip, ...pilotData })
         } catch (err) {
-          console.error(`Could not reach stored bulb ${bulb.name} (${bulb.ip}):`, err.message)
+          console.error(`Could not reach stored bulb ${bulb.name} (${ip}):`, err.message)
         }
       }))
     } catch (err) {
       console.error('Error querying stored bulbs:', err.message)
     }
   })
-  ipcMain.handle('changeColor', handleChangeColor)
-  ipcMain.handle('setTemp', handleSetTemp)
-  ipcMain.handle('setScene', handleSetScene)
+  ipcMain.handle('changeColor', (_event, ip, { r, g, b }, dimming) =>
+    handleSetBulbStatus(null, _event, ip, { r, g, b, dimming: Number(dimming) }, { skipUiRefresh: true }))
+  ipcMain.handle('setTemp', (_event, ip, temp, dimming) =>
+    handleSetBulbStatus(null, _event, ip, { temp: Number(temp), dimming: Number(dimming) }, { skipUiRefresh: true }))
+  ipcMain.handle('setScene', (_event, ip, sceneId, sceneSpeed, dimming) =>
+    handleSetBulbStatus(null, _event, ip, { sceneId: Number(sceneId), speed: Number(sceneSpeed), dimming: Number(dimming) }, { skipUiRefresh: true }))
   ipcMain.handle('setStatus', (_event, ip, commandParams) => applySavedStatus({
     ...commandParams,
     ip: commandParams.ip ?? ip
@@ -513,4 +561,5 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   app.isQuiting = true
+  closeCmdSocket()
 })

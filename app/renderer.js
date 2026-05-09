@@ -465,6 +465,13 @@ document.getElementById('config-button').addEventListener('click', () => {
   location.href = './config.html'
 })
 
+function reportBulbErrors (results) {
+  const failures = results.filter(r => r.status === 'rejected')
+  if (failures.length === 0) return true
+  failures.forEach(f => console.error('Bulb command failed:', f.reason?.message ?? f.reason))
+  return failures.length < results.length
+}
+
 function getEntityHTML (entity, type) {
   const isRoom = type === 'room'
   const entityId = isRoom ? entity.mac : entity.result.mac
@@ -598,10 +605,10 @@ function getEntityHTML (entity, type) {
     })
 
     bulbSwitch.addEventListener('change', async (event) => {
-      const isBulbOn = !event.target.checked
+      const isNowOn = event.target.checked
       let promises
-      if (isBulbOn) {
-        promises = roomBulbs.map(bulb => window.bulbNetworking.setBulb(bulb.ip, !isBulbOn))
+      if (!isNowOn) {
+        promises = roomBulbs.map(bulb => window.bulbNetworking.setBulb(bulb.ip, false))
       } else {
         const selectedMode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`).value
         switch (selectedMode) {
@@ -616,33 +623,34 @@ function getEntityHTML (entity, type) {
             break
         }
       }
-      await Promise.allSettled(promises)
-
-      event.target.innerHTML = !isBulbOn
+      const results = await Promise.allSettled(promises)
+      if (!reportBulbErrors(results)) {
+        event.target.checked = !isNowOn
+      }
     })
 
     tempPicker.addEventListener('change', async (event) => {
-      const promises = roomBulbs.map(bulb => window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value))
-      await Promise.allSettled(promises)
+      const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value)))
+      reportBulbErrors(results)
       bulbSwitch.checked = true
     })
 
     colorPicker.addEventListener('input', async (event) => {
       const rgbColor = hexaToRGB(event.target.value)
-      const promises = roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value))
-      await Promise.allSettled(promises)
+      const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value)))
+      reportBulbErrors(results)
       bulbSwitch.checked = true
     })
 
     sceneSelector.addEventListener('change', async (event) => {
-      const promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value))
-      await Promise.allSettled(promises)
+      const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value)))
+      reportBulbErrors(results)
       bulbSwitch.checked = true
     })
 
     sceneSpeedRange.addEventListener('change', async (event) => {
-      const promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value))
-      await Promise.allSettled(promises)
+      const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value)))
+      reportBulbErrors(results)
       bulbSwitch.checked = true
     })
 
@@ -660,7 +668,8 @@ function getEntityHTML (entity, type) {
           promises = roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, sceneSpeedRange.value, event.target.value))
           break
       }
-      await Promise.allSettled(promises)
+      const results = await Promise.allSettled(promises)
+      reportBulbErrors(results)
       bulbSwitch.checked = true
     })
 
