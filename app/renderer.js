@@ -52,6 +52,13 @@ function inferBulbStateFromLive (liveResult) {
   return { ...base, mode: 'temp', temp: liveResult.temp ?? 2700 }
 }
 
+function trackBulbState (bulb, stateUpdate) {
+  const mac = bulb.mac ?? bulb.result?.mac
+  if (!mac) return
+  const current = discoveredBulbStates.get(mac) || {}
+  discoveredBulbStates.set(mac, { ...current, ...stateUpdate })
+}
+
 function isPerBulbRoomPreset (status) {
   return status.targetType === 'room' &&
     Array.isArray(status.bulbs) && status.bulbs.length > 0 &&
@@ -606,11 +613,11 @@ function getEntityHTML (entity, type) {
 
     bulbSwitch.addEventListener('change', async (event) => {
       const isNowOn = event.target.checked
+      const selectedMode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`).value
       let promises
       if (!isNowOn) {
         promises = roomBulbs.map(bulb => window.bulbNetworking.setBulb(bulb.ip, false))
       } else {
-        const selectedMode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`).value
         switch (selectedMode) {
           case 'color':
             promises = roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, hexaToRGB(colorPicker.value), dimmingRange.value))
@@ -624,6 +631,23 @@ function getEntityHTML (entity, type) {
         }
       }
       const results = await Promise.allSettled(promises)
+      if (!isNowOn) {
+        roomBulbs.forEach(b => trackBulbState(b, { state: false }))
+      } else {
+        switch (selectedMode) {
+          case 'color': {
+            const { r, g, b } = hexaToRGB(colorPicker.value)
+            roomBulbs.forEach(bl => trackBulbState(bl, { state: true, r, g, b, dimming: parseInt(dimmingRange.value), temp: 0, sceneId: 0 }))
+            break
+          }
+          case 'temp':
+            roomBulbs.forEach(bl => trackBulbState(bl, { state: true, temp: parseInt(tempPicker.value), dimming: parseInt(dimmingRange.value), r: 0, g: 0, b: 0, sceneId: 0 }))
+            break
+          case 'scene':
+            roomBulbs.forEach(bl => trackBulbState(bl, { state: true, sceneId: parseInt(sceneSelector.value), speed: parseInt(sceneSpeedRange.value), dimming: parseInt(dimmingRange.value), r: 0, g: 0, b: 0, temp: 0 }))
+            break
+        }
+      }
       if (!reportBulbErrors(results)) {
         event.target.checked = !isNowOn
       }
@@ -632,6 +656,7 @@ function getEntityHTML (entity, type) {
     tempPicker.addEventListener('change', async (event) => {
       const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.setTemp(bulb.ip, event.target.value, dimmingRange.value)))
       reportBulbErrors(results)
+      roomBulbs.forEach(b => trackBulbState(b, { state: true, temp: parseInt(event.target.value), dimming: parseInt(dimmingRange.value), r: 0, g: 0, b: 0, sceneId: 0 }))
       bulbSwitch.checked = true
     })
 
@@ -639,18 +664,21 @@ function getEntityHTML (entity, type) {
       const rgbColor = hexaToRGB(event.target.value)
       const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.changeColor(bulb.ip, rgbColor, dimmingRange.value)))
       reportBulbErrors(results)
+      roomBulbs.forEach(b => trackBulbState(b, { state: true, ...rgbColor, dimming: parseInt(dimmingRange.value), temp: 0, sceneId: 0 }))
       bulbSwitch.checked = true
     })
 
     sceneSelector.addEventListener('change', async (event) => {
       const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value)))
       reportBulbErrors(results)
+      roomBulbs.forEach(b => trackBulbState(b, { state: true, sceneId: parseInt(event.target.value), speed: parseInt(sceneSpeedRange.value), dimming: parseInt(dimmingRange.value), r: 0, g: 0, b: 0, temp: 0 }))
       bulbSwitch.checked = true
     })
 
     sceneSpeedRange.addEventListener('change', async (event) => {
       const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, sceneSelector.value, event.target.value, dimmingRange.value)))
       reportBulbErrors(results)
+      roomBulbs.forEach(b => trackBulbState(b, { speed: parseInt(event.target.value) }))
       bulbSwitch.checked = true
     })
 
@@ -670,6 +698,7 @@ function getEntityHTML (entity, type) {
       }
       const results = await Promise.allSettled(promises)
       reportBulbErrors(results)
+      roomBulbs.forEach(b => trackBulbState(b, { dimming: parseInt(event.target.value) }))
       bulbSwitch.checked = true
     })
 
