@@ -561,8 +561,7 @@ function getEntityHTML (entity, type) {
     colorInput.checked = !isRoom && entity.result.r
     const colorLabel = document.createElement('label')
     colorLabel.htmlFor = 'color' + entityId
-    colorLabel.innerHTML = '<img class="tab-selector" src="../public/color-picker.svg" alt="Color Picker tab">'
-    colorLabel.title = 'color picker'
+    colorLabel.textContent = 'Color'
     modeSelector.appendChild(colorInput)
     modeSelector.appendChild(colorLabel)
 
@@ -574,8 +573,7 @@ function getEntityHTML (entity, type) {
     tempInput.checked = isRoom || (!isRoom && entity.result.temp)
     const tempLabel = document.createElement('label')
     tempLabel.htmlFor = 'temp' + entityId
-    tempLabel.innerHTML = '<img class="tab-selector" src="../public/temperature-picker.svg" alt="Temperature Picker tab">'
-    tempLabel.title = 'temperature picker'
+    tempLabel.textContent = 'Temp'
     modeSelector.appendChild(tempInput)
     modeSelector.appendChild(tempLabel)
 
@@ -587,8 +585,7 @@ function getEntityHTML (entity, type) {
     sceneInput.checked = !isRoom && !!entity.result.sceneId
     const sceneLabel = document.createElement('label')
     sceneLabel.htmlFor = 'scene' + entityId
-    sceneLabel.innerHTML = '<img class="tab-selector" src="../public/scene-picker.svg" alt="Scene Picker tab">'
-    sceneLabel.title = 'scene picker'
+    sceneLabel.textContent = 'Scene'
     modeSelector.appendChild(sceneInput)
     modeSelector.appendChild(sceneLabel)
 
@@ -718,8 +715,10 @@ function getEntityHTML (entity, type) {
     })
 
     if (!isRoom) {
-      bulbTemplate.querySelector('.floating-buttons .add-bulb-button').remove()
-      bulbTemplate.querySelector('.floating-buttons .delete-room-button').remove()
+      const addBulbBtn = bulbTemplate.querySelector('.floating-buttons .add-bulb-button')
+      if (addBulbBtn) addBulbBtn.remove()
+      const deleteBtn = bulbTemplate.querySelector('.floating-buttons .delete-room-button')
+      if (deleteBtn) deleteBtn.remove()
     }
 
     if (isRoom) {
