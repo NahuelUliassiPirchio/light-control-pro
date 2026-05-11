@@ -28,6 +28,9 @@ let pendingStatusDraft = null
 
 const discoveredBulbStates = new Map()
 
+const SCENE_SPEED_ADJUSTABLE = new Set([1, 2, 3, 4, 5, 6, 7, 8, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33])
+const SCENE_DIMMING_ADJUSTABLE = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33])
+
 const SCENE_NAMES = {
   1: 'Ocean', 2: 'Romance', 3: 'Sunset', 4: 'Party', 5: 'Fireplace',
   6: 'Cozy', 7: 'Forest', 8: 'Pastel Colors', 9: 'Wake up', 10: 'Bedtime',
@@ -100,6 +103,68 @@ function getStatusSummaryItems (status) {
     summary.push(status.sceneName)
   }
   return summary
+}
+
+function updateSceneControls (sceneId, dimmingEl, speedContainer) {
+  const id = parseInt(sceneId)
+  dimmingEl.style.display = SCENE_DIMMING_ADJUSTABLE.has(id) ? 'flex' : 'none'
+  speedContainer.style.display = SCENE_SPEED_ADJUSTABLE.has(id) ? 'flex' : 'none'
+}
+
+const SCENE_COLORS = {
+  1:  '#00b4a0', // Ocean
+  2:  '#e91e8c', // Romance
+  3:  '#ff6b35', // Sunset
+  4:  '#e040fb', // Party
+  5:  '#ff4500', // Fireplace
+  6:  '#f59e0b', // Cozy
+  7:  '#2d6a4f', // Forest
+  8:  '#c9b1ff', // Pastel Colors
+  9:  '#ffe066', // Wake up
+  10: '#f5a623', // Bedtime
+  11: '#ffbf80', // Warm white
+  12: '#cce7ff', // Daylight
+  13: '#d0e8ff', // Cool white
+  14: '#a89a3a', // Night light
+  15: '#e0f0ff', // Focus
+  16: '#f4a8c0', // Relax
+  17: '#f5f5f0', // True colors
+  18: '#5b7fff', // TV Time
+  19: '#c084fc', // Plant growth
+  20: '#b5ead7', // Spring
+  21: '#ffd166', // Summer
+  22: '#d4622a', // Fall
+  23: '#1565c0', // Deep dive
+  24: '#1b5e20', // Jungle
+  25: '#76c442', // Mojito
+  26: '#9c27b0', // Club
+  27: '#cc0000', // Christmas
+  28: '#ff6600', // Halloween
+  29: '#ffb347', // Candlelight
+  30: '#ffd700', // Golden white
+  31: '#ffe600', // Pulse
+  32: '#cd7f32', // Steampunk
+  33: '#ff8c00'  // Diwali
+}
+
+function getToggleColor (mode, colorPicker, tempPicker, sceneSelector) {
+  if (mode === 'color') return colorPicker.value
+  if (mode === 'temp') return getTemperaturePreviewColor(parseInt(tempPicker.value))
+  const sceneId = parseInt(sceneSelector?.value)
+  return SCENE_COLORS[sceneId] || '#c8ddff'
+}
+
+function applyToggleGlow (slider, isOn, color) {
+  if (!isOn) {
+    slider.style.background = ''
+    slider.style.boxShadow = ''
+    return
+  }
+  const r = parseInt(color.slice(1, 3), 16)
+  const g = parseInt(color.slice(3, 5), 16)
+  const b = parseInt(color.slice(5, 7), 16)
+  slider.style.background = color
+  slider.style.boxShadow = `0 0 10px rgba(${r},${g},${b},0.75), 0 0 28px rgba(${r},${g},${b},0.35), inset 0 0 6px rgba(255,255,255,0.15)`
 }
 
 function getTemperaturePreviewColor (temperature) {
@@ -542,6 +607,9 @@ function getEntityHTML (entity, type) {
     const sceneSpeedRange = bulbTemplate.querySelector('.speed-range')
     const dimmingRange = bulbTemplate.querySelector('.dimming-range')
     const saveStatusButton = bulbTemplate.querySelector('.floating-buttons .save-status-button')
+    const slider = bulbTemplate.querySelector('.slider')
+    const dimmingEl = bulbTemplate.querySelector('.dimming')
+    const speedContainer = bulbTemplate.querySelector('.speed-container')
 
     if (!isRoom && (entity.result.r || entity.result.g || entity.result.b)) {
       colorPicker.value = rgbToHex(entity.result.r, entity.result.g, entity.result.b)
@@ -604,8 +672,23 @@ function getEntityHTML (entity, type) {
     modeSelector.querySelector(`#temp${entityId}`).checked = isRoom || (!isRoom && entity.result.temp)
     updateTabs(bulbTemplate)
 
+    const initialMode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`)?.value || 'temp'
+    applyToggleGlow(slider, bulbSwitch.checked, getToggleColor(initialMode, colorPicker, tempPicker, sceneSelector))
+    if (initialMode === 'scene') {
+      updateSceneControls(sceneSelector.value, dimmingEl, speedContainer)
+    }
+
     modeSelector.addEventListener('change', async (event) => {
       updateTabs(bulbTemplate)
+      const mode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`).value
+      if (mode === 'scene') {
+        updateSceneControls(sceneSelector.value, dimmingEl, speedContainer)
+      } else {
+        dimmingEl.style.display = 'flex'
+      }
+      if (bulbSwitch.checked) {
+        applyToggleGlow(slider, true, getToggleColor(mode, colorPicker, tempPicker, sceneSelector))
+      }
     })
 
     bulbSwitch.addEventListener('change', async (event) => {
@@ -648,6 +731,7 @@ function getEntityHTML (entity, type) {
       if (!reportBulbErrors(results)) {
         event.target.checked = !isNowOn
       }
+      applyToggleGlow(slider, bulbSwitch.checked, getToggleColor(selectedMode, colorPicker, tempPicker, sceneSelector))
     })
 
     tempPicker.addEventListener('change', async (event) => {
@@ -655,6 +739,7 @@ function getEntityHTML (entity, type) {
       reportBulbErrors(results)
       roomBulbs.forEach(b => trackBulbState(b, { state: true, temp: parseInt(event.target.value), dimming: parseInt(dimmingRange.value), r: 0, g: 0, b: 0, sceneId: 0 }))
       bulbSwitch.checked = true
+      applyToggleGlow(slider, true, getToggleColor('temp', colorPicker, tempPicker, sceneSelector))
     })
 
     colorPicker.addEventListener('input', async (event) => {
@@ -663,13 +748,16 @@ function getEntityHTML (entity, type) {
       reportBulbErrors(results)
       roomBulbs.forEach(b => trackBulbState(b, { state: true, ...rgbColor, dimming: parseInt(dimmingRange.value), temp: 0, sceneId: 0 }))
       bulbSwitch.checked = true
+      applyToggleGlow(slider, true, getToggleColor('color', colorPicker, tempPicker, sceneSelector))
     })
 
     sceneSelector.addEventListener('change', async (event) => {
+      updateSceneControls(event.target.value, dimmingEl, speedContainer)
       const results = await Promise.allSettled(roomBulbs.map(bulb => window.bulbNetworking.setScene(bulb.ip, event.target.value, sceneSpeedRange.value, dimmingRange.value)))
       reportBulbErrors(results)
       roomBulbs.forEach(b => trackBulbState(b, { state: true, sceneId: parseInt(event.target.value), speed: parseInt(sceneSpeedRange.value), dimming: parseInt(dimmingRange.value), r: 0, g: 0, b: 0, temp: 0 }))
       bulbSwitch.checked = true
+      applyToggleGlow(slider, true, getToggleColor('scene', colorPicker, tempPicker, sceneSelector))
     })
 
     sceneSpeedRange.addEventListener('change', async (event) => {
