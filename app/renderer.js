@@ -25,8 +25,10 @@ const saveStatusSummary = document.getElementById('save-status-summary')
 const saveStatusNameInput = document.getElementById('nameInput')
 const saveStatusHiddenInput = document.getElementById('hiddenInput')
 let pendingStatusDraft = null
+let currentDetailRoom = null
 
 const discoveredBulbStates = new Map()
+const roomToggleMap = new Map()
 
 const SCENE_SPEED_ADJUSTABLE = new Set([1, 2, 3, 4, 5, 6, 7, 8, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33])
 const SCENE_DIMMING_ADJUSTABLE = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33])
@@ -323,13 +325,207 @@ window.addEventListener('keydown', (event) => {
   }
 })
 
+function showMainView () {
+  currentDetailRoom = null
+  document.getElementById('room-detail-view').style.display = 'none'
+  document.getElementById('main-view').style.display = 'block'
+}
+
+function showRoomDetail (room) {
+  currentDetailRoom = room
+  document.getElementById('main-view').style.display = 'none'
+  document.getElementById('room-detail-view').style.display = 'block'
+
+  // Swap input node to drop stale listeners
+  const oldInput = document.getElementById('room-detail-name')
+  const nameInput = oldInput.cloneNode(true)
+  oldInput.parentNode.replaceChild(nameInput, oldInput)
+  nameInput.value = room.name || 'New room'
+  nameInput.addEventListener('blur', async () => {
+    room.name = nameInput.value
+    await window.dataProcessing.addOrEditStoredBulbs({ ...room, name: nameInput.value })
+  })
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur() })
+
+  const container = document.getElementById('room-bulbs-container')
+  container.innerHTML = ''
+  const roomBulbs = storedBulbs.filter(b => room.bulbs?.includes(b.mac))
+
+  if (roomBulbs.length === 0) {
+    const msg = document.createElement('p')
+    msg.className = 'room-empty-msg'
+    msg.textContent = "This room has no bulbs yet. Add some using the + Bulb button above."
+    container.appendChild(msg)
+  } else {
+    roomBulbs.forEach(bulb => {
+      const discovered = discoveredBulbStates.get(bulb.mac)
+      const bulbData = {
+        ip: bulb.ip,
+        name: bulb.name,
+        result: discovered
+          ? { ...discovered, mac: bulb.mac }
+          : { mac: bulb.mac, state: false, dimming: 100, temp: 2700, r: 0, g: 0, b: 0, sceneId: 0, speed: 100 }
+      }
+      const card = getEntityHTML(bulbData, 'bulb')
+      if (!discovered) card.classList.add('bulb-unreachable')
+      container.appendChild(card)
+    })
+  }
+
+  const replaceBtn = (id, handler) => {
+    const old = document.getElementById(id)
+    const btn = old.cloneNode(true)
+    old.parentNode.replaceChild(btn, old)
+    btn.addEventListener('click', handler)
+  }
+
+  replaceBtn('room-detail-add-bulb', () => {
+    document.getElementById('myModal').style.display = 'block'
+    populateList({
+      allItems: storedBulbs.filter(b => !b.bulbs),
+      selectedItemsMac: room.bulbs
+    })
+  })
+
+  replaceBtn('room-detail-save', () => {
+    openModal({
+      targetType: 'room',
+      targetName: room.name || 'New room',
+      bulbs: roomBulbs.map(b => ({
+        mac: b.mac, ip: b.ip, name: b.name || 'Bulb',
+        ...inferBulbStateFromLive(discoveredBulbStates.get(b.mac))
+      }))
+    })
+  })
+
+  replaceBtn('room-detail-delete', async () => {
+    if (confirm(`Delete room "${room.name || 'New Room'}"?`)) {
+      await window.dataProcessing.removeStoredBulbs(room.mac)
+      location.reload()
+    }
+  })
+}
+
+function createRoomSummaryCard (room) {
+  const card = document.createElement('li')
+  card.className = 'bulb-section'
+
+  const header = document.createElement('div')
+  header.className = 'bulb-header'
+
+  const nameInput = document.createElement('input')
+  nameInput.className = 'bulb-name'
+  nameInput.value = room.name || 'New room'
+  nameInput.addEventListener('blur', async () => {
+    room.name = nameInput.value
+    await window.dataProcessing.addOrEditStoredBulbs({ ...room, name: nameInput.value })
+  })
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur() })
+  header.appendChild(nameInput)
+  card.appendChild(header)
+
+  const countEl = document.createElement('span')
+  countEl.className = 'room-bulb-count'
+  const n = room.bulbs?.length || 0
+  countEl.textContent = `${n} bulb${n !== 1 ? 's' : ''}`
+  card.appendChild(countEl)
+
+  const actions = document.createElement('div')
+  actions.className = 'floating-buttons'
+
+  const viewBtn = document.createElement('button')
+  viewBtn.textContent = 'View bulbs'
+  viewBtn.addEventListener('click', () => showRoomDetail(room))
+  actions.appendChild(viewBtn)
+
+  const deleteBtn = document.createElement('button')
+  deleteBtn.className = 'delete-room-button'
+  deleteBtn.title = 'Delete room'
+  deleteBtn.innerHTML = '<img src="../public/delete-icon.svg" alt="Delete room" />'
+  deleteBtn.addEventListener('click', async () => {
+    if (confirm(`Delete room "${room.name || 'New Room'}"?`)) {
+      await window.dataProcessing.removeStoredBulbs(room.mac)
+      location.reload()
+    }
+  })
+  actions.appendChild(deleteBtn)
+
+  card.appendChild(actions)
+  return card
+}
+
+document.getElementById('back-to-rooms').addEventListener('click', showMainView)
+document.getElementById('room-detail-reload').addEventListener('click', () => {
+  if (currentDetailRoom?.mac) sessionStorage.setItem('pendingRoomMac', currentDetailRoom.mac)
+  location.reload()
+})
+
+document.getElementById('confirmBtn').addEventListener('click', async function () {
+  if (!currentDetailRoom) return
+  const selectedValues = []
+  document.querySelectorAll('#valuesList input[type="checkbox"]:checked').forEach(cb => {
+    selectedValues.push(cb.getAttribute('mac'))
+  })
+  currentDetailRoom.bulbs = selectedValues
+  await window.dataProcessing.addOrEditStoredBulbs(currentDetailRoom)
+  location.reload()
+})
+
 let storedBulbs
 let favStatus
 (async () => {
   storedBulbs = await window.dataProcessing.getStoredBulbs()
   const rooms = storedBulbs.filter(bulb => bulb.bulbs)
   rooms.forEach(room => {
-    bulbsContainer.appendChild(getEntityHTML(room, 'room'))
+    const card = getEntityHTML(room, 'room')
+
+    // Darker section: bulb name pills + chevron navigation
+    const listWrapper = document.createElement('div')
+    listWrapper.className = 'room-bulb-list-wrapper'
+    listWrapper.addEventListener('click', () => showRoomDetail(room))
+
+    const bulbListEl = document.createElement('ul')
+    bulbListEl.className = 'room-bulb-list'
+    const roomBulbsList = storedBulbs.filter(b => room.bulbs?.includes(b.mac))
+    if (roomBulbsList.length > 0) {
+      roomBulbsList.forEach(b => {
+        const li = document.createElement('li')
+        li.className = 'room-bulb-list-item'
+        li.textContent = b.name || 'Bulb'
+        bulbListEl.appendChild(li)
+      })
+    } else {
+      const li = document.createElement('li')
+      li.className = 'room-bulb-list-item room-bulb-list-empty'
+      li.textContent = 'No bulbs'
+      bulbListEl.appendChild(li)
+    }
+    listWrapper.appendChild(bulbListEl)
+
+    const chevron = document.createElement('span')
+    chevron.className = 'room-bulb-list-chevron'
+    chevron.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>`
+    listWrapper.appendChild(chevron)
+
+    const floatingBtns = card.querySelector('.floating-buttons')
+    card.insertBefore(listWrapper, floatingBtns)
+
+    // Set currentDetailRoom when add-bulb modal opens
+    card.querySelector('.add-bulb-button')?.addEventListener('click', () => {
+      currentDetailRoom = room
+    })
+
+    roomToggleMap.set(room, {
+      bulbSwitch: card.querySelector('.bulb-switch > input'),
+      slider: card.querySelector('.slider'),
+      modeSelector: card.querySelector('.mode-selector'),
+      colorPicker: card.querySelector('.color-picker'),
+      tempPicker: card.querySelector('.temp-picker'),
+      sceneSelector: card.querySelector('#scene-selector'),
+      entityId: room.mac || ''
+    })
+
+    bulbsContainer.appendChild(card)
   })
 
   const favsContainer = document.getElementById('fav-status')
@@ -338,6 +534,13 @@ let favStatus
   favStatus.forEach(status => {
     favsContainer.appendChild(createSavedStatusCard(status))
   })
+
+  const pendingRoomMac = sessionStorage.getItem('pendingRoomMac')
+  if (pendingRoomMac) {
+    sessionStorage.removeItem('pendingRoomMac')
+    const room = storedBulbs.find(b => b.mac === pendingRoomMac)
+    if (room) showRoomDetail(room)
+  }
 
   addRoomButton.addEventListener('click', async () => {
     await window.dataProcessing.addOrEditStoredBulbs({
@@ -496,6 +699,18 @@ document.addEventListener('DOMContentLoaded', () => {
   window.bulbNetworking.onBulbDiscovered(async (bulbData) => {
     if (bulbData.result?.mac) {
       discoveredBulbStates.set(bulbData.result.mac, bulbData.result)
+
+      for (const [room, refs] of roomToggleMap) {
+        if (room.bulbs?.includes(bulbData.result.mac)) {
+          const anyOn = room.bulbs.some(mac => discoveredBulbStates.get(mac)?.state)
+          refs.bulbSwitch.checked = anyOn
+          const mode = refs.modeSelector?.querySelector(`input[name="mode${refs.entityId}"]:checked`)?.value || 'temp'
+          applyToggleGlow(refs.slider, anyOn, getToggleColor(mode, refs.colorPicker, refs.tempPicker, refs.sceneSelector))
+          break
+        }
+      }
+
+
     }
     if (storedBulbs) {
       const bulb = storedBulbs.filter(bulb => bulbData.result.mac === bulb.mac)
@@ -525,7 +740,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     }
-    bulbsContainer.appendChild(getEntityHTML(bulbData, 'bulb'))
+    const isInRoom = storedBulbs?.some(entity => entity.bulbs?.includes(bulbData.result?.mac))
+    if (!isInRoom) {
+      bulbsContainer.appendChild(getEntityHTML(bulbData, 'bulb'))
+    }
   })
 })
 
@@ -831,16 +1049,6 @@ function getEntityHTML (entity, type) {
       }
     })
 
-    document.getElementById('confirmBtn').addEventListener('click', async function () {
-      const selectedValues = []
-      document.querySelectorAll('#valuesList input[type="checkbox"]:checked').forEach(checkbox => {
-        selectedValues.push(checkbox.getAttribute('mac'))
-      })
-
-      entity.bulbs = selectedValues
-      await window.dataProcessing.addOrEditStoredBulbs(entity)
-      location.reload()
-    })
   }
 
   return bulbTemplate

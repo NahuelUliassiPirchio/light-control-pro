@@ -337,6 +337,28 @@ body input { font-family: var(--text-font); }
 
 .plus-sign { display: none; }
 
+#add-room-button {
+  position: relative;
+}
+#add-room-button .plus-sign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  border: 1.5px solid #10131a;
+  pointer-events: none;
+}
+
 /* ─── SAVED PRESETS ──────────────────────────────────────────────────────*/
 
 #save-status-button { margin-bottom: 4px; }
@@ -839,6 +861,165 @@ input[type="range"]::-webkit-slider-thumb {
 }
 #shortcutsContainer li button:hover { opacity: 1; background: rgba(255, 255, 255, 0.08); }
 #shortcutsContainer li button img { width: 16px; height: 16px; }
+
+/* ─── ROOM SUMMARY CARD ──────────────────────────────────────────────────*/
+
+.room-bulb-count {
+  color: var(--on-surface-muted);
+  font-size: 0.82rem;
+  margin-top: -4px;
+}
+
+.room-bulb-list-wrapper {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.room-bulb-list-wrapper:hover {
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.room-bulb-list {
+  flex: 1;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.room-bulb-list-item {
+  font-size: 0.75rem;
+  color: var(--on-surface-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+.room-bulb-list-empty { opacity: 0.4; }
+
+.room-bulb-list-chevron {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  transition: color 0.2s, transform 0.2s;
+}
+.room-bulb-list-wrapper:hover .room-bulb-list-chevron {
+  color: white;
+  transform: translateX(3px);
+}
+
+/* ─── ROOM DETAIL VIEW ───────────────────────────────────────────────────*/
+
+#room-detail-view {
+  display: none;
+}
+
+.room-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.room-title-input {
+  flex: 1;
+  border: 1px solid transparent;
+  padding: 2px 6px;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: white;
+  font-family: var(--text-font);
+}
+.room-title-input:hover,
+.room-title-input:focus {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+}
+.room-title-input:focus { outline: none; }
+
+#room-detail-reload,
+#room-detail-save,
+#room-detail-add-bulb,
+#room-detail-delete {
+  width: 34px; height: 34px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-surface-muted);
+  transition: background 0.2s, color 0.2s;
+}
+#room-detail-reload:hover,
+#room-detail-save:hover,
+#room-detail-add-bulb:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+}
+#room-detail-delete:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #f87171;
+}
+#room-detail-reload .icon { width: 15px; }
+#room-detail-reload:hover {
+  transform: rotate(-180deg);
+  transition: background 0.2s, color 0.2s, transform 0.4s ease;
+}
+#room-detail-save svg { width: 15px; height: 15px; }
+#room-detail-add-bulb .icon { width: 16px; }
+#room-detail-delete img { width: 15px; height: 15px; }
+
+#room-bulbs-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+
+.bulb-unreachable {
+  opacity: 0.45;
+  pointer-events: none;
+  filter: saturate(0.25);
+}
+.bulb-unreachable::after {
+  content: 'Unreachable';
+  position: absolute;
+  top: 10px; right: 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+.room-empty-msg {
+  color: var(--on-surface-muted);
+  font-size: 0.88rem;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+/* ─── PER BULB ROWS (save modal) ─────────────────────────────────────────*/
 
 .per-bulb-row {
   display: flex;
