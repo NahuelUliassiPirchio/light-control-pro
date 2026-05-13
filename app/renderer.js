@@ -367,6 +367,7 @@ function showRoomDetail (room) {
           : { mac: bulb.mac, state: false, dimming: 100, temp: 2700, r: 0, g: 0, b: 0, sceneId: 0, speed: 100 }
       }
       const card = getEntityHTML(bulbData, 'bulb')
+      card.dataset.mac = bulb.mac
       if (!discovered) card.classList.add('bulb-unreachable')
       container.appendChild(card)
     })
@@ -711,6 +712,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
+      const detailCard = document.querySelector(`#room-bulbs-container [data-mac="${bulbData.result.mac}"]`)
+      if (detailCard) detailCard.classList.remove('bulb-unreachable')
+
 
     }
     if (storedBulbs) {
@@ -897,6 +901,11 @@ function getEntityHTML (entity, type) {
     }
 
     modeSelector.querySelector(`#temp${entityId}`).checked = isRoom || (!isRoom && entity.result.temp)
+    // Fallback: if no mode radio ended up checked (e.g. firmware returns no temp/scene/r),
+    // default to temp so updateTabs never reads a null value.
+    if (!modeSelector.querySelector(`input[name="mode${entityId}"]:checked`)) {
+      modeSelector.querySelector(`#temp${entityId}`).checked = true
+    }
     updateTabs(bulbTemplate)
 
     const initialMode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`)?.value || 'temp'
@@ -907,7 +916,7 @@ function getEntityHTML (entity, type) {
 
     modeSelector.addEventListener('change', async (event) => {
       updateTabs(bulbTemplate)
-      const mode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`).value
+      const mode = modeSelector.querySelector(`input[name="mode${entityId}"]:checked`)?.value || 'temp'
       if (mode === 'scene') {
         updateSceneControls(sceneSelector.value, dimmingEl, speedContainer)
       } else {
