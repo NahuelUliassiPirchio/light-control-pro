@@ -33,11 +33,13 @@ function clamp (value, min, max) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Persistent command socket
 //
-// On macOS, a fresh UDP socket returns EHOSTUNREACH when sending unicast to a
-// host on the local subnet unless the socket has previously received a packet
+// On macOS, a fresh UDP socket bound to 0.0.0.0 returns EHOSTUNREACH for
+// unicast packets to local-subnet IPs unless it has first received a packet
 // from that subnet (routing context is per-socket, not global).
-// A single long-lived socket primed via broadcast avoids recreating that
-// context on every command.
+//
+// Binding the socket to the local interface IP instead of 0.0.0.0 tells macOS
+// which interface to route through immediately, eliminating EHOSTUNREACH even
+// for bulbs that never respond to broadcast probes (e.g. some LED strips).
 // ─────────────────────────────────────────────────────────────────────────────
 const pendingByIp = new Map() // ip → [{resolve, reject, timer, id}]
 
@@ -53,7 +55,17 @@ function makeProbe (interfaces) {
   }))
 }
 
+function makePilotProbe () {
+  return Buffer.from(JSON.stringify({ method: 'getPilot', params: {} }))
+}
+
 function createCmdSocket () {
+  // Resolve interfaces before creating the socket so we can bind to the local IP.
+  // Binding to the specific local IP (instead of 0.0.0.0) lets macOS associate the
+  // socket with the correct interface immediately, avoiding EHOSTUNREACH on unicast.
+  cachedInterfaces = getSubnetBroadcasts()
+  const bindIp = cachedInterfaces[0].localIp !== '0.0.0.0' ? cachedInterfaces[0].localIp : undefined
+
   const sock = createSocket('udp4')
 
   sock.on('message', (msg, rinfo) => {
@@ -90,19 +102,30 @@ function createCmdSocket () {
   cmdSocketReady = new Promise((resolve) => {
     sock.once('listening', () => {
       sock.setBroadcast(true)
-      cachedInterfaces = getSubnetBroadcasts()
-      const probe = makeProbe(cachedInterfaces)
-      // Resolve once a bulb replies (route is primed) or after 2s (bulbs offline)
+
+      // Send both registration and getPilot probes: some devices (e.g. LED strips)
+      // only respond to one or the other. 3 rounds spaced 1.5s apart handle slow
+      // devices and cases where the Mac's WiFi just came up and drops the first packet.
+      // Resolves immediately on any reply, or after 5s fallback if all bulbs are off.
+      const regProbe = makeProbe(cachedInterfaces)
+      const pilotProbe = makePilotProbe()
+
       let done = false
       const finish = () => { if (!done) { done = true; resolve() } }
       sock.once('message', finish)
-      setTimeout(finish, 2000)
+      const fallback = setTimeout(finish, 5000)
+      sock._primingFallback = fallback
 
-      cachedInterfaces.forEach(({ broadcast }) => {
-        sock.send(probe, 0, probe.length, 38899, broadcast, () => {})
+      const sendProbes = () => cachedInterfaces.forEach(({ broadcast }) => {
+        sock.send(regProbe, 0, regProbe.length, 38899, broadcast, () => {})
+        sock.send(pilotProbe, 0, pilotProbe.length, 38899, broadcast, () => {})
       })
+      sendProbes()
+      const r1 = setTimeout(sendProbes, 1500)
+      const r2 = setTimeout(sendProbes, 3000)
+      sock._primingRetries = [r1, r2]
     })
-    sock.bind(0)
+    sock.bind(0, bindIp)
   })
 
   return sock
@@ -133,11 +156,20 @@ async function sendCommandToBulb (ip, message, retry = true) {
       if (err) {
         removePending(ip, id)
         clearTimeout(timer)
-        // On EHOSTUNREACH the routing context was lost — reset and retry once
+        // On EHOSTUNREACH the routing context was lost (e.g. network interface changed
+        // after the socket was created). Reset and retry once with a fresh socket.
+        // We close the old socket without rejecting other pending commands — those will
+        // time out naturally rather than getting an immediate "App closing" error.
         if (err.code === 'EHOSTUNREACH' && retry) {
+          const old = cmdSocket
+          if (old) {
+            if (old._primingFallback) clearTimeout(old._primingFallback)
+            if (old._primingRetries) old._primingRetries.forEach(clearTimeout)
+            try { old.close() } catch (_) {}
+          }
           cmdSocket = null
           cmdSocketReady = null
-          sendCommandToBulb(ip, message, false).then(resolve).catch(reject)
+          ensureCmdSocket().then(() => sendCommandToBulb(ip, message, false)).then(resolve).catch(reject)
         } else {
           reject(err)
         }
@@ -156,6 +188,8 @@ function removePending (ip, id) {
 
 function closeCmdSocket () {
   if (cmdSocket) {
+    if (cmdSocket._primingFallback) clearTimeout(cmdSocket._primingFallback)
+    if (cmdSocket._primingRetries) cmdSocket._primingRetries.forEach(clearTimeout)
     try { cmdSocket.close() } catch (_) {}
     cmdSocket = null
     cmdSocketReady = null
@@ -172,8 +206,26 @@ ensureCmdSocket()
 // Periodic heartbeat to keep the macOS per-socket routing context alive.
 // ARP entries expire after ~1200s (macOS default); 120s gives a 10x safety
 // margin against early eviction under memory pressure, with minimal traffic.
+// Also detects network interface changes (e.g. WiFi reconnect with new IP)
+// and resets the socket so the next command primes against the new subnet.
 setInterval(() => {
-  if (!cmdSocket || !cachedInterfaces) return
+  if (!cmdSocket) return
+
+  const currentInterfaces = getSubnetBroadcasts()
+  const interfacesChanged = !cachedInterfaces ||
+    cachedInterfaces.length !== currentInterfaces.length ||
+    cachedInterfaces.some((iface, i) =>
+      iface.localIp !== currentInterfaces[i]?.localIp ||
+      iface.broadcast !== currentInterfaces[i]?.broadcast
+    )
+
+  if (interfacesChanged) {
+    console.log('Network interface changed, resetting command socket')
+    closeCmdSocket()
+    ensureCmdSocket()
+    return
+  }
+
   const probe = makeProbe(cachedInterfaces)
   cachedInterfaces.forEach(({ broadcast }) => {
     cmdSocket.send(probe, 0, probe.length, 38899, broadcast, () => {})

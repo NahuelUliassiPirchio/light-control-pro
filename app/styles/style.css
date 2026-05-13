@@ -97,6 +97,62 @@ body {
   color: white;
 }
 
+/* ─── UNREACHABLE TOAST ────────────────────────────────────────────────────── */
+
+.unreachable-toast {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  width: calc(100% - 32px);
+  max-width: 520px;
+  background: var(--surface-high);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  z-index: 9999;
+  animation: toast-in 0.2s ease;
+}
+
+.unreachable-toast[hidden] {
+  display: none;
+}
+
+.unreachable-toast-msg {
+  flex: 1;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--on-surface-muted);
+}
+
+.unreachable-toast button {
+  flex-shrink: 0;
+  align-self: center;
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-family: var(--text-font);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.unreachable-toast button:hover {
+  background: rgba(173, 198, 255, 0.1);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 body button:hover { cursor: pointer; }
 img { -webkit-user-drag: none; }
 body input { font-family: var(--text-font); }
@@ -367,11 +423,24 @@ body input { font-family: var(--text-font); }
 #fav-status {
   display: flex;
   gap: 10px;
-  padding: 4px 0 12px;
+  padding: 4px 0 10px;
   overflow-x: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--outline-dim) transparent;
 }
-#fav-status::-webkit-scrollbar { display: none; }
+#fav-status::-webkit-scrollbar {
+  height: 4px;
+}
+#fav-status::-webkit-scrollbar-track {
+  background: transparent;
+}
+#fav-status::-webkit-scrollbar-thumb {
+  background: var(--outline-dim);
+  border-radius: 999px;
+}
+#fav-status::-webkit-scrollbar-thumb:hover {
+  background: var(--outline);
+}
 
 #fav-status .status {
   padding: 0.85rem;

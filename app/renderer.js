@@ -698,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.bulbNetworking.onBulbDiscovered(async (bulbData) => {
     if (bulbData.result?.mac) {
+      unreachableToast.hidden = true
       discoveredBulbStates.set(bulbData.result.mac, bulbData.result)
 
       for (const [room, refs] of roomToggleMap) {
@@ -755,10 +756,18 @@ document.getElementById('config-button').addEventListener('click', () => {
   location.href = './config.html'
 })
 
+const unreachableToast = document.getElementById('unreachable-toast')
+document.getElementById('unreachable-toast-retry').addEventListener('click', () => {
+  unreachableToast.hidden = true
+  window.bulbNetworking.startDiscovery()
+})
+
 function reportBulbErrors (results) {
   const failures = results.filter(r => r.status === 'rejected')
   if (failures.length === 0) return true
   failures.forEach(f => console.error('Bulb command failed:', f.reason?.message ?? f.reason))
+  const hasUnreachable = failures.some(f => /EHOSTUNREACH/i.test(f.reason?.message ?? ''))
+  if (hasUnreachable) unreachableToast.hidden = false
   return failures.length < results.length
 }
 
