@@ -6,7 +6,6 @@ document.getElementById('backButton').addEventListener('click', () => {
 })
 
 const runOnStartupCheckbox = document.getElementById('runOnStartup')
-const openOnStartupCheckbox = document.getElementById('openOnStartup')
 let isRecording = false
 let pressedKeys = {}
 let editingShortcutId = null
@@ -22,14 +21,10 @@ const editIndicator = document.getElementById('editIndicator');
 
 async function loadStates () {
   const settings = await window.dataProcessing.getSettings()
-  openOnStartupCheckbox.checked = true
   if (settings) {
     settings.forEach(setting => {
       if (setting.id === 'startup') {
         runOnStartupCheckbox.checked = setting.runOnStartup
-      }
-      if (setting.id === 'openOnStartup') {
-        openOnStartupCheckbox.checked = setting.openOnStartup
       }
     })
   } else {
@@ -47,10 +42,6 @@ async function loadStates () {
 
 runOnStartupCheckbox.addEventListener('change', async (e) => {
   await window.dataProcessing.addOrEditSetting('startup', { runOnStartup: runOnStartupCheckbox.checked })
-})
-
-openOnStartupCheckbox.addEventListener('change', async () => {
-  await window.dataProcessing.addOrEditSetting('openOnStartup', { openOnStartup: openOnStartupCheckbox.checked })
 })
 
 async function loadShortcuts () {

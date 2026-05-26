@@ -7,7 +7,6 @@ const addRoomButton = document.getElementById('add-room-button')
 const bulbsContainer = document.getElementById('bulbs-container')
 
 window.updateUi.onUpdatedBulbs(() => location.reload())
-window.appNavigation.onNavigateToConfig(() => { location.href = './config.html' })
 
 document.getElementById('cancelBtn').addEventListener('click', function () {
   document.getElementById('myModal').style.display = 'none'
@@ -34,22 +33,52 @@ const SCENE_SPEED_ADJUSTABLE = new Set([1, 2, 3, 4, 5, 6, 7, 8, 20, 21, 22, 23, 
 const SCENE_DIMMING_ADJUSTABLE = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33])
 
 const SCENE_NAMES = {
-  1: 'Ocean', 2: 'Romance', 3: 'Sunset', 4: 'Party', 5: 'Fireplace',
-  6: 'Cozy', 7: 'Forest', 8: 'Pastel Colors', 9: 'Wake up', 10: 'Bedtime',
-  11: 'Warm White', 12: 'Daylight', 13: 'Cool white', 14: 'Night light',
-  15: 'Focus', 16: 'Relax', 17: 'True colors', 18: 'TV time', 19: 'Plantgrowth',
-  20: 'Spring', 21: 'Summer', 22: 'Fall', 23: 'Deepdive', 24: 'Jungle',
-  25: 'Mojito', 26: 'Club', 27: 'Christmas', 28: 'Halloween', 29: 'Candlelight',
-  30: 'Golden white', 31: 'Pulse', 32: 'Steampunk', 1000: 'Rhythm'
+  1: 'Ocean',
+  2: 'Romance',
+  3: 'Sunset',
+  4: 'Party',
+  5: 'Fireplace',
+  6: 'Cozy',
+  7: 'Forest',
+  8: 'Pastel Colors',
+  9: 'Wake up',
+  10: 'Bedtime',
+  11: 'Warm White',
+  12: 'Daylight',
+  13: 'Cool white',
+  14: 'Night light',
+  15: 'Focus',
+  16: 'Relax',
+  17: 'True colors',
+  18: 'TV time',
+  19: 'Plantgrowth',
+  20: 'Spring',
+  21: 'Summer',
+  22: 'Fall',
+  23: 'Deepdive',
+  24: 'Jungle',
+  25: 'Mojito',
+  26: 'Club',
+  27: 'Christmas',
+  28: 'Halloween',
+  29: 'Candlelight',
+  30: 'Golden white',
+  31: 'Pulse',
+  32: 'Steampunk',
+  1000: 'Rhythm'
 }
 
 function inferBulbStateFromLive (liveResult) {
   if (!liveResult) return { state: false, dimming: 100, mode: 'temp' }
   const base = { state: !!liveResult.state, dimming: liveResult.dimming ?? 100 }
   if (liveResult.sceneId > 0) {
-    return { ...base, mode: 'scene', sceneId: liveResult.sceneId,
+    return {
+      ...base,
+      mode: 'scene',
+      sceneId: liveResult.sceneId,
       sceneSpeed: liveResult.speed ?? 100,
-      sceneName: SCENE_NAMES[liveResult.sceneId] || 'Scene' }
+      sceneName: SCENE_NAMES[liveResult.sceneId] || 'Scene'
+    }
   }
   if (liveResult.r > 0 || liveResult.g > 0 || liveResult.b > 0) {
     return { ...base, mode: 'color', r: liveResult.r, g: liveResult.g, b: liveResult.b }
@@ -62,12 +91,6 @@ function trackBulbState (bulb, stateUpdate) {
   if (!mac) return
   const current = discoveredBulbStates.get(mac) || {}
   discoveredBulbStates.set(mac, { ...current, ...stateUpdate })
-}
-
-function isPerBulbRoomPreset (status) {
-  return status.targetType === 'room' &&
-    Array.isArray(status.bulbs) && status.bulbs.length > 0 &&
-    status.bulbs[0].state !== undefined
 }
 
 function closeModal () {
@@ -114,15 +137,15 @@ function updateSceneControls (sceneId, dimmingEl, speedContainer) {
 }
 
 const SCENE_COLORS = {
-  1:  '#00b4a0', // Ocean
-  2:  '#e91e8c', // Romance
-  3:  '#ff6b35', // Sunset
-  4:  '#e040fb', // Party
-  5:  '#ff4500', // Fireplace
-  6:  '#f59e0b', // Cozy
-  7:  '#2d6a4f', // Forest
-  8:  '#c9b1ff', // Pastel Colors
-  9:  '#ffe066', // Wake up
+  1: '#00b4a0', // Ocean
+  2: '#e91e8c', // Romance
+  3: '#ff6b35', // Sunset
+  4: '#e040fb', // Party
+  5: '#ff4500', // Fireplace
+  6: '#f59e0b', // Cozy
+  7: '#2d6a4f', // Forest
+  8: '#c9b1ff', // Pastel Colors
+  9: '#ffe066', // Wake up
   10: '#f5a623', // Bedtime
   11: '#ffbf80', // Warm white
   12: '#cce7ff', // Daylight
@@ -146,7 +169,7 @@ const SCENE_COLORS = {
   30: '#ffd700', // Golden white
   31: '#ffe600', // Pulse
   32: '#cd7f32', // Steampunk
-  33: '#ff8c00'  // Diwali
+  33: '#ff8c00' // Diwali
 }
 
 function getToggleColor (mode, colorPicker, tempPicker, sceneSelector) {
@@ -198,23 +221,10 @@ function getStatusPreviewItems (status) {
   return summary
 }
 
-function renderStatusSummary (items, container, className) {
-  container.innerHTML = ''
-  items.forEach(item => {
-    const chip = document.createElement('span')
-    chip.className = className
-    const itemConfig = typeof item === 'string' ? { label: item } : item
-    if (itemConfig.swatchColor) {
-      const swatch = document.createElement('span')
-      swatch.className = 'status-summary-swatch'
-      swatch.style.background = itemConfig.swatchColor
-      chip.appendChild(swatch)
-    }
-    const label = document.createElement('span')
-    label.innerText = itemConfig.label
-    chip.appendChild(label)
-    container.appendChild(chip)
-  })
+function isPerBulbRoomPreset (status) {
+  return status.targetType === 'room' &&
+    Array.isArray(status.bulbs) && status.bulbs.length > 0 &&
+    status.bulbs[0].state !== undefined
 }
 
 function renderPerBulbRoomSummary (bulbs, container) {
@@ -264,6 +274,25 @@ function renderPerBulbCardTags (bulbs, container) {
     more.innerText = `+${bulbs.length - 2} more`
     container.appendChild(more)
   }
+}
+
+function renderStatusSummary (items, container, className) {
+  container.innerHTML = ''
+  items.forEach(item => {
+    const chip = document.createElement('span')
+    chip.className = className
+    const itemConfig = typeof item === 'string' ? { label: item } : item
+    if (itemConfig.swatchColor) {
+      const swatch = document.createElement('span')
+      swatch.className = 'status-summary-swatch'
+      swatch.style.background = itemConfig.swatchColor
+      chip.appendChild(swatch)
+    }
+    const label = document.createElement('span')
+    label.innerText = itemConfig.label
+    chip.appendChild(label)
+    container.appendChild(chip)
+  })
 }
 
 function openModal (statusDraft) {
@@ -354,7 +383,7 @@ function showRoomDetail (room) {
   if (roomBulbs.length === 0) {
     const msg = document.createElement('p')
     msg.className = 'room-empty-msg'
-    msg.textContent = "This room has no bulbs yet. Add some using the + Bulb button above."
+    msg.textContent = 'This room has no bulbs yet. Add some using the + Bulb button above.'
     container.appendChild(msg)
   } else {
     roomBulbs.forEach(bulb => {
@@ -393,7 +422,9 @@ function showRoomDetail (room) {
       targetType: 'room',
       targetName: room.name || 'New room',
       bulbs: roomBulbs.map(b => ({
-        mac: b.mac, ip: b.ip, name: b.name || 'Bulb',
+        mac: b.mac,
+        ip: b.ip,
+        name: b.name || 'Bulb',
         ...inferBulbStateFromLive(discoveredBulbStates.get(b.mac))
       }))
     })
@@ -405,54 +436,6 @@ function showRoomDetail (room) {
       location.reload()
     }
   })
-}
-
-function createRoomSummaryCard (room) {
-  const card = document.createElement('li')
-  card.className = 'bulb-section'
-
-  const header = document.createElement('div')
-  header.className = 'bulb-header'
-
-  const nameInput = document.createElement('input')
-  nameInput.className = 'bulb-name'
-  nameInput.value = room.name || 'New room'
-  nameInput.addEventListener('blur', async () => {
-    room.name = nameInput.value
-    await window.dataProcessing.addOrEditStoredBulbs({ ...room, name: nameInput.value })
-  })
-  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameInput.blur() })
-  header.appendChild(nameInput)
-  card.appendChild(header)
-
-  const countEl = document.createElement('span')
-  countEl.className = 'room-bulb-count'
-  const n = room.bulbs?.length || 0
-  countEl.textContent = `${n} bulb${n !== 1 ? 's' : ''}`
-  card.appendChild(countEl)
-
-  const actions = document.createElement('div')
-  actions.className = 'floating-buttons'
-
-  const viewBtn = document.createElement('button')
-  viewBtn.textContent = 'View bulbs'
-  viewBtn.addEventListener('click', () => showRoomDetail(room))
-  actions.appendChild(viewBtn)
-
-  const deleteBtn = document.createElement('button')
-  deleteBtn.className = 'delete-room-button'
-  deleteBtn.title = 'Delete room'
-  deleteBtn.innerHTML = '<img src="../public/delete-icon.svg" alt="Delete room" />'
-  deleteBtn.addEventListener('click', async () => {
-    if (confirm(`Delete room "${room.name || 'New Room'}"?`)) {
-      await window.dataProcessing.removeStoredBulbs(room.mac)
-      location.reload()
-    }
-  })
-  actions.appendChild(deleteBtn)
-
-  card.appendChild(actions)
-  return card
 }
 
 document.getElementById('back-to-rooms').addEventListener('click', showMainView)
@@ -505,7 +488,7 @@ let favStatus
 
     const chevron = document.createElement('span')
     chevron.className = 'room-bulb-list-chevron'
-    chevron.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>`
+    chevron.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>'
     listWrapper.appendChild(chevron)
 
     const floatingBtns = card.querySelector('.floating-buttons')
@@ -592,28 +575,22 @@ function buildStatusDraft ({
   sceneSpeedRange,
   dimmingRange
 }) {
-  if (isRoom) {
-    return {
-      targetType: 'room',
-      targetName: getEntityDisplayName(entity, true),
-      bulbs: roomBulbs.map(bulb => ({
-        mac: bulb.mac,
-        ip: bulb.ip,
-        name: bulb.name || 'Bulb',
-        ...inferBulbStateFromLive(discoveredBulbStates.get(bulb.mac))
-      }))
-    }
-  }
-
-  const selectedMode = modeSelector.querySelector(`input[name="mode${entity.result.mac}"]:checked`).value
+  const selectedMode = modeSelector.querySelector(`input[name="mode${isRoom ? entity.mac : entity.result.mac}"]:checked`).value
   const draft = {
-    targetType: 'bulb',
-    targetName: getEntityDisplayName(entity, false),
+    targetType: isRoom ? 'room' : 'bulb',
+    targetName: getEntityDisplayName(entity, isRoom),
     state: bulbSwitch.checked,
     dimming: parseInt(dimmingRange.value),
     mode: selectedMode,
-    bulbs: [],
-    ip: entity.ip
+    bulbs: roomBulbs.map(bulb => ({
+      mac: bulb.mac,
+      ip: bulb.ip,
+      name: bulb.name || 'Bulb'
+    }))
+  }
+
+  if (!isRoom && entity.ip) {
+    draft.ip = entity.ip
   }
 
   if (selectedMode === 'temp') {
@@ -714,8 +691,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const detailCard = document.querySelector(`#room-bulbs-container [data-mac="${bulbData.result.mac}"]`)
       if (detailCard) detailCard.classList.remove('bulb-unreachable')
-
-
     }
     if (storedBulbs) {
       const bulb = storedBulbs.filter(bulb => bulbData.result.mac === bulb.mac)
@@ -773,6 +748,176 @@ function reportBulbErrors (results) {
   const hasUnreachable = failures.some(f => /EHOSTUNREACH/i.test(f.reason?.message ?? ''))
   if (hasUnreachable) unreachableToast.hidden = false
   return failures.length < results.length
+}
+
+// --- Audio Reactive Mode ---
+let audioActive = false
+let audioStream = null
+let audioContext = null
+let animFrameId = null
+let lastCommandTime = 0
+const THROTTLE_MS = 200
+const TEMP_THRESHOLD = 150 // K — minimum temp change to send command
+const DIMMING_THRESHOLD = 8 // % — minimum brightness change to send command
+let audioTargetBulbs = []
+let lastSentTemp = null
+let lastSentDimming = null
+
+const audioButton = document.getElementById('audio-button')
+const audioSyncModal = document.getElementById('audio-sync-modal')
+
+audioButton.addEventListener('click', () => {
+  if (audioActive) {
+    stopAudioMode()
+  } else {
+    openAudioSyncModal()
+  }
+})
+
+function openAudioSyncModal () {
+  const list = document.getElementById('audio-sync-list')
+  list.innerHTML = ''
+
+  const rooms = (storedBulbs || []).filter(b => b.bulbs)
+  const bulbs = (storedBulbs || []).filter(b => b.ip && !b.bulbs)
+
+  ;[...rooms, ...bulbs].forEach(entity => {
+    const isRoom = !!entity.bulbs
+    const li = document.createElement('li')
+    const label = document.createElement('label')
+    const checkbox = document.createElement('input')
+    checkbox.type = 'checkbox'
+    checkbox.checked = true
+    checkbox.value = entity.mac
+    checkbox.dataset.entityType = isRoom ? 'room' : 'bulb'
+
+    const nameSpan = document.createElement('span')
+    nameSpan.textContent = entity.name || (isRoom ? 'Room' : 'Bulb')
+
+    const badge = document.createElement('span')
+    badge.className = isRoom ? 'audio-sync-type-badge room' : 'audio-sync-type-badge'
+    badge.textContent = isRoom ? `Room · ${entity.bulbs.length}` : 'Bulb'
+
+    label.appendChild(checkbox)
+    label.appendChild(nameSpan)
+    label.appendChild(badge)
+    li.appendChild(label)
+    list.appendChild(li)
+  })
+
+  audioSyncModal.style.display = 'block'
+}
+
+function closeAudioSyncModal () {
+  audioSyncModal.style.display = 'none'
+}
+
+document.getElementById('audio-sync-close').addEventListener('click', closeAudioSyncModal)
+document.getElementById('audio-sync-cancel').addEventListener('click', closeAudioSyncModal)
+audioSyncModal.addEventListener('click', e => { if (e.target === audioSyncModal) closeAudioSyncModal() })
+
+document.getElementById('audio-sync-confirm').addEventListener('click', async () => {
+  const checkboxes = [...document.querySelectorAll('#audio-sync-list input[type="checkbox"]:checked')]
+  const selectedMacs = new Set(checkboxes.map(cb => cb.value))
+  const selectedTypes = Object.fromEntries(checkboxes.map(cb => [cb.value, cb.dataset.entityType]))
+
+  const resolved = []
+  const added = new Set()
+
+  selectedMacs.forEach(mac => {
+    if (selectedTypes[mac] === 'room') {
+      const room = storedBulbs.find(b => b.mac === mac && b.bulbs)
+      if (room) {
+        room.bulbs.forEach(bulbMac => {
+          if (!added.has(bulbMac)) {
+            const bulb = storedBulbs.find(b => b.mac === bulbMac && b.ip)
+            if (bulb) { resolved.push(bulb); added.add(bulbMac) }
+          }
+        })
+      }
+    } else {
+      if (!added.has(mac)) {
+        const bulb = storedBulbs.find(b => b.mac === mac && b.ip)
+        if (bulb) { resolved.push(bulb); added.add(mac) }
+      }
+    }
+  })
+
+  audioTargetBulbs = resolved
+  closeAudioSyncModal()
+  await startAudioMode()
+})
+
+async function startAudioMode () {
+  try {
+    const sources = await window.audioCapture.getDesktopSources()
+    if (!sources.length) throw new Error('No desktop sources found')
+
+    audioStream = await navigator.mediaDevices.getUserMedia({
+      audio: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sources[0].id } },
+      video: { mandatory: { chromeMediaSource: 'desktop', chromeMediaSourceId: sources[0].id } }
+    })
+
+    // Drop video tracks — only need audio
+    audioStream.getVideoTracks().forEach(t => t.stop())
+
+    audioContext = new AudioContext()
+    const source = audioContext.createMediaStreamSource(audioStream)
+    const analyser = audioContext.createAnalyser()
+    analyser.fftSize = 256
+    source.connect(analyser)
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount) // 128 bins
+
+    audioActive = true
+    audioButton.classList.add('active')
+
+    function tick () {
+      if (!audioActive) return
+      animFrameId = requestAnimationFrame(tick)
+
+      analyser.getByteFrequencyData(dataArray)
+
+      const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length
+      const bass = avg(dataArray.slice(0, 5)) // ~0-860Hz
+      const treble = avg(dataArray.slice(20, 60)) // ~3440-10320Hz
+      const overall = avg(dataArray)
+
+      const dimming = Math.max(10, Math.round((overall / 255) * 100))
+      const bassRatio = bass / (bass + treble + 1)
+      const temp = Math.round(2200 + (1 - bassRatio) * 4000) // warm=bass, cool=treble
+
+      const now = Date.now()
+      if (now - lastCommandTime < THROTTLE_MS) return
+
+      const tempChanged = lastSentTemp === null || Math.abs(temp - lastSentTemp) >= TEMP_THRESHOLD
+      const dimmingChanged = lastSentDimming === null || Math.abs(dimming - lastSentDimming) >= DIMMING_THRESHOLD
+      if (!tempChanged && !dimmingChanged) return
+
+      lastCommandTime = now
+      lastSentTemp = temp
+      lastSentDimming = dimming
+
+      audioTargetBulbs.forEach(b => {
+        window.bulbNetworking.setTemp(b.ip, temp, dimming).catch(() => {})
+      })
+    }
+
+    tick()
+  } catch (err) {
+    console.error('Error starting audio mode:', err)
+    alert('Could not capture system audio: ' + err.message)
+  }
+}
+
+function stopAudioMode () {
+  audioActive = false
+  audioButton.classList.remove('active')
+  if (animFrameId) cancelAnimationFrame(animFrameId)
+  if (audioContext) { audioContext.close(); audioContext = null }
+  if (audioStream) { audioStream.getTracks().forEach(t => t.stop()); audioStream = null }
+  lastSentTemp = null
+  lastSentDimming = null
 }
 
 function getEntityHTML (entity, type) {
@@ -1066,7 +1211,6 @@ function getEntityHTML (entity, type) {
         location.reload()
       }
     })
-
   }
 
   return bulbTemplate

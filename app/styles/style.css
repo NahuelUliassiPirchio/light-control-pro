@@ -21,22 +21,28 @@
   --secondary: #ffb95f;
   --error: #f87171;
   --text-font: 'Montserrat', sans-serif;
+  --secondary-color: #ff4500;
+  --scrollbar-track: rgba(20, 22, 36, 0.6);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.18);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.32);
 }
 
 html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
+  overflow: auto;
 }
 
 body {
   background: linear-gradient(160deg, #10131a 0%, #09090f 60%, #0d0f1a 100%);
   color: var(--on-surface);
   font-family: var(--text-font);
-  display: flex;
-  flex-direction: column;
+  display: block;
+  padding: 16px 20px;
   box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 .content {
@@ -46,6 +52,34 @@ body {
   box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+}
+
+/* Chromium / Electron (WebKit scrollbar) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
 }
 
 .content::-webkit-scrollbar {
@@ -72,10 +106,10 @@ body {
   -webkit-app-region: drag;
   user-select: none;
   height: 36px;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin: -16px -20px 16px -20px;
   padding: 0 0 0 16px;
   background: rgba(8, 10, 15, 0.92);
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -366,6 +400,67 @@ body input { font-family: var(--text-font); }
 
 /* ─── SECTION TITLES & HEADER ────────────────────────────────────────────*/
 
+#audio-sync-confirm {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+#audio-sync-confirm:hover {
+  background: linear-gradient(135deg, #34d467, #18b54e);
+}
+
+.audio-sync-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.audio-sync-list li {
+  border-radius: 10px;
+}
+
+.audio-sync-list li:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.audio-sync-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.9rem;
+}
+
+.audio-sync-list input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: #22c55e;
+}
+
+.audio-sync-type-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.audio-sync-type-badge.room {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
 .title {
   margin: 0;
   color: white;
@@ -380,6 +475,42 @@ body input { font-family: var(--text-font); }
   justify-content: space-between;
   margin-bottom: 16px;
 }
+#audio-button {
+  width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+#audio-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+#audio-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#audio-button.active {
+  background: rgba(99, 220, 140, 0.2);
+  border-color: rgba(99, 220, 140, 0.6);
+  color: #63dc8c;
+  box-shadow: 0 0 10px rgba(99, 220, 140, 0.3);
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(99, 220, 140, 0.3); }
+  50% { box-shadow: 0 0 16px rgba(99, 220, 140, 0.6); }
+}
+
 
 .header-actions { display: flex; align-items: center; gap: 8px; }
 
@@ -1122,3 +1253,8 @@ input[type="range"]::-webkit-slider-thumb {
 .per-bulb-row:last-child { border-bottom: none; }
 .per-bulb-name { font-size: 0.76rem; font-weight: 600; color: rgba(255, 255, 255, 0.5); min-width: 72px; flex-shrink: 0; }
 .per-bulb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+#shortcutsContainer li button img {
+  width: 16px;
+  height: 16px;
+}

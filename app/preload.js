@@ -6,6 +6,10 @@ contextBridge.exposeInMainWorld('windowControls', {
   close: () => ipcRenderer.send('window-close')
 })
 
+contextBridge.exposeInMainWorld('audioCapture', {
+  getDesktopSources: () => ipcRenderer.invoke('get-desktop-sources')
+})
+
 contextBridge.exposeInMainWorld('updateUi', {
   onUpdatedBulbs: (callback) => ipcRenderer.on('updatedBulbs', (_event, value) => callback(value))
 })
@@ -18,10 +22,6 @@ contextBridge.exposeInMainWorld('bulbNetworking', {
   setScene: (ip, sceneId, speed, dimming) => ipcRenderer.invoke('setScene', ip, sceneId, speed, dimming),
   startDiscovery: () => ipcRenderer.send('startDiscovery'),
   onBulbDiscovered: (callback) => ipcRenderer.on('bulbDiscovered', (event, arg) => callback(arg))
-})
-
-contextBridge.exposeInMainWorld('appNavigation', {
-  onNavigateToConfig: (callback) => ipcRenderer.on('navigate-to-config', (_event) => callback())
 })
 
 contextBridge.exposeInMainWorld('dataProcessing', {
