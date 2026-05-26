@@ -1,11 +1,43 @@
-const { createSocket } = require('dgram')
-const os = require('os')
+import { createSocket, Socket } from 'dgram'
+import { IpcMainInvokeEvent, BrowserWindow } from 'electron'
+import os from 'os'
+import { WizResponse, BulbCommandParams, SetBulbOptions } from './types'
 
-function getSubnetBroadcasts () {
-  const broadcasts = []
+interface NetworkInterface {
+  localIp: string
+  broadcast: string
+}
+
+interface PendingCommand {
+  resolve: (value: string) => void
+  reject: (reason: Error) => void
+  timer: ReturnType<typeof setTimeout>
+  id: number
+}
+
+interface WizSocket extends Socket {
+  _primingFallback?: ReturnType<typeof setTimeout>
+  _primingRetries?: ReturnType<typeof setTimeout>[]
+}
+
+interface PilotParams {
+  state?: boolean
+  dimming?: number
+  r?: number
+  g?: number
+  b?: number
+  temp?: number
+  sceneId?: number
+  speed?: number
+}
+
+type BulbDiscoveryCallback = (bulb: { ip: string } & WizResponse) => void
+
+function getSubnetBroadcasts (): NetworkInterface[] {
+  const broadcasts: NetworkInterface[] = []
   const interfaces = os.networkInterfaces()
   for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
+    for (const iface of interfaces[name]!) {
       if (iface.family === 'IPv4' && !iface.internal) {
         const parts = iface.address.split('.')
         const maskParts = iface.netmask.split('.')
@@ -19,14 +51,14 @@ function getSubnetBroadcasts () {
   return broadcasts.length > 0 ? broadcasts : [{ localIp: '0.0.0.0', broadcast: '255.255.255.255' }]
 }
 
-function validateWizResponse (parsed) {
+function validateWizResponse (parsed: WizResponse): WizResponse {
   if (parsed.result?.success === false) {
     throw new Error(`Bulb error (code: ${parsed.result.errorCode ?? 'unknown'})`)
   }
   return parsed
 }
 
-function clamp (value, min, max) {
+function clamp (value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
@@ -41,32 +73,32 @@ function clamp (value, min, max) {
 // which interface to route through immediately, eliminating EHOSTUNREACH even
 // for bulbs that never respond to broadcast probes (e.g. some LED strips).
 // ─────────────────────────────────────────────────────────────────────────────
-const pendingByIp = new Map() // ip → [{resolve, reject, timer, id}]
+const pendingByIp = new Map<string, PendingCommand[]>()
 
-let cmdSocket = null
-let cmdSocketReady = null
-let cachedInterfaces = null // refreshed each time the socket is (re)created
+let cmdSocket: WizSocket | null = null
+let cmdSocketReady: Promise<void> | null = null
+let cachedInterfaces: NetworkInterface[] | null = null // refreshed each time the socket is (re)created
 let msgId = 0
 
-function makeProbe (interfaces) {
+function makeProbe (interfaces: NetworkInterface[]): Buffer {
   return Buffer.from(JSON.stringify({
     method: 'registration',
     params: { phoneMac: 'AAAAAAAAAAAA', register: false, phoneIp: interfaces[0].localIp, id: '1' }
   }))
 }
 
-function makePilotProbe () {
+function makePilotProbe (): Buffer {
   return Buffer.from(JSON.stringify({ method: 'getPilot', params: {} }))
 }
 
-function createCmdSocket () {
+function createCmdSocket (): WizSocket {
   // Resolve interfaces before creating the socket so we can bind to the local IP.
   // Binding to the specific local IP (instead of 0.0.0.0) lets macOS associate the
   // socket with the correct interface immediately, avoiding EHOSTUNREACH on unicast.
   cachedInterfaces = getSubnetBroadcasts()
   const bindIp = cachedInterfaces[0].localIp !== '0.0.0.0' ? cachedInterfaces[0].localIp : undefined
 
-  const sock = createSocket('udp4')
+  const sock = createSocket('udp4') as WizSocket
 
   sock.on('message', (msg, rinfo) => {
     const queue = pendingByIp.get(rinfo.address)
@@ -82,7 +114,7 @@ function createCmdSocket () {
         if (matched !== -1) idx = matched
         // If matched === -1 the response is unsolicited or stale; fall through to FIFO
       }
-    } catch (_) { /* unparseable — fall through to FIFO */ }
+    } catch { /* unparseable — fall through to FIFO */ }
     const pending = queue.splice(idx, 1)[0]
     if (queue.length === 0) pendingByIp.delete(rinfo.address)
     clearTimeout(pending.timer)
@@ -107,7 +139,7 @@ function createCmdSocket () {
       // only respond to one or the other. 3 rounds spaced 1.5s apart handle slow
       // devices and cases where the Mac's WiFi just came up and drops the first packet.
       // Resolves immediately on any reply, or after 5s fallback if all bulbs are off.
-      const regProbe = makeProbe(cachedInterfaces)
+      const regProbe = makeProbe(cachedInterfaces!)
       const pilotProbe = makePilotProbe()
 
       let done = false
@@ -116,7 +148,7 @@ function createCmdSocket () {
       const fallback = setTimeout(finish, 5000)
       sock._primingFallback = fallback
 
-      const sendProbes = () => cachedInterfaces.forEach(({ broadcast }) => {
+      const sendProbes = () => cachedInterfaces!.forEach(({ broadcast }) => {
         sock.send(regProbe, 0, regProbe.length, 38899, broadcast, () => {})
         sock.send(pilotProbe, 0, pilotProbe.length, 38899, broadcast, () => {})
       })
@@ -131,12 +163,12 @@ function createCmdSocket () {
   return sock
 }
 
-function ensureCmdSocket () {
+function ensureCmdSocket (): Promise<void> {
   if (!cmdSocket) cmdSocket = createCmdSocket()
-  return cmdSocketReady
+  return cmdSocketReady!
 }
 
-async function sendCommandToBulb (ip, message, retry = true) {
+async function sendCommandToBulb (ip: string, message: string, retry = true): Promise<string> {
   await ensureCmdSocket()
 
   const id = ++msgId
@@ -150,9 +182,9 @@ async function sendCommandToBulb (ip, message, retry = true) {
     }, 5000)
 
     if (!pendingByIp.has(ip)) pendingByIp.set(ip, [])
-    pendingByIp.get(ip).push({ resolve, reject, timer, id })
+    pendingByIp.get(ip)!.push({ resolve, reject, timer, id })
 
-    cmdSocket.send(messageBuffer, 0, messageBuffer.length, 38899, ip, (err) => {
+    cmdSocket!.send(messageBuffer, 0, messageBuffer.length, 38899, ip, (err) => {
       if (err) {
         removePending(ip, id)
         clearTimeout(timer)
@@ -160,12 +192,12 @@ async function sendCommandToBulb (ip, message, retry = true) {
         // after the socket was created). Reset and retry once with a fresh socket.
         // We close the old socket without rejecting other pending commands — those will
         // time out naturally rather than getting an immediate "App closing" error.
-        if (err.code === 'EHOSTUNREACH' && retry) {
+        if ((err as NodeJS.ErrnoException).code === 'EHOSTUNREACH' && retry) {
           const old = cmdSocket
           if (old) {
             if (old._primingFallback) clearTimeout(old._primingFallback)
             if (old._primingRetries) old._primingRetries.forEach(clearTimeout)
-            try { old.close() } catch (_) {}
+            try { old.close() } catch {}
           }
           cmdSocket = null
           cmdSocketReady = null
@@ -178,7 +210,7 @@ async function sendCommandToBulb (ip, message, retry = true) {
   })
 }
 
-function removePending (ip, id) {
+function removePending (ip: string, id: number): void {
   const queue = pendingByIp.get(ip)
   if (!queue) return
   const idx = queue.findIndex(p => p.id === id)
@@ -186,11 +218,11 @@ function removePending (ip, id) {
   if (queue.length === 0) pendingByIp.delete(ip)
 }
 
-function closeCmdSocket () {
+function closeCmdSocket (): void {
   if (cmdSocket) {
     if (cmdSocket._primingFallback) clearTimeout(cmdSocket._primingFallback)
     if (cmdSocket._primingRetries) cmdSocket._primingRetries.forEach(clearTimeout)
-    try { cmdSocket.close() } catch (_) {}
+    try { cmdSocket.close() } catch {}
     cmdSocket = null
     cmdSocketReady = null
   }
@@ -226,17 +258,17 @@ setInterval(() => {
     return
   }
 
-  const probe = makeProbe(cachedInterfaces)
-  cachedInterfaces.forEach(({ broadcast }) => {
-    cmdSocket.send(probe, 0, probe.length, 38899, broadcast, () => {})
+  const probe = makeProbe(cachedInterfaces!)
+  cachedInterfaces!.forEach(({ broadcast }) => {
+    cmdSocket!.send(probe, 0, probe.length, 38899, broadcast, () => {})
   })
 }, 120000)
 
-function discoverBulbs (callback) {
-  return new Promise((resolve, reject) => {
+function discoverBulbs (callback: BulbDiscoveryCallback): Promise<never[]> {
+  return new Promise((resolve) => {
     const networkInterfaces = getSubnetBroadcasts()
     const localIp = networkInterfaces[0].localIp
-    const discoveredMacs = new Set()
+    const discoveredMacs = new Set<string>()
 
     const registrationMsg = Buffer.from(JSON.stringify({
       method: 'registration',
@@ -244,13 +276,13 @@ function discoverBulbs (callback) {
     }))
     const getPilotMsg = Buffer.from(JSON.stringify({ method: 'getPilot', params: {} }))
 
-    const sockets = []
+    const sockets: Socket[] = []
     let resolved = false
 
-    function handleMessage (msg, rinfo) {
+    function handleMessage (msg: Buffer, rinfo: { address: string }) {
       try {
         const parsed = JSON.parse(msg.toString())
-        const mac = parsed.result?.mac || parsed.params?.mac
+        const mac: string | undefined = parsed.result?.mac || parsed.params?.mac
         if (mac) {
           if (discoveredMacs.has(mac)) return
           discoveredMacs.add(mac)
@@ -264,7 +296,7 @@ function discoverBulbs (callback) {
               console.log('Bulb discovered (full state):', bulbData)
               callback(bulbData)
             })
-            .catch(err => console.error('Error getting bulb state after registration:', err.message))
+            .catch(err => console.error('Error getting bulb state after registration:', (err as Error).message))
           return
         }
 
@@ -279,16 +311,16 @@ function discoverBulbs (callback) {
     function closeAll () {
       if (resolved) return
       resolved = true
-      sockets.forEach(s => { try { s.close() } catch (_) {} })
+      sockets.forEach(s => { try { s.close() } catch {} })
       resolve([])
     }
 
-    function createDiscoverySocket (port, onReady) {
+    function createDiscoverySocket (port: number | null, onReady: ((sock: Socket) => void) | null) {
       const sock = createSocket('udp4')
       sockets.push(sock)
 
       sock.on('error', (err) => {
-        console.error(`Discovery socket error (port ${port || 'random'}):`, err.message)
+        console.error(`Discovery socket error (port ${port ?? 'random'}):`, err.message)
       })
 
       sock.on('message', handleMessage)
@@ -298,10 +330,10 @@ function discoverBulbs (callback) {
         if (onReady) onReady(sock)
       })
 
-      sock.bind(port || 0)
+      sock.bind(port ?? 0)
     }
 
-    function sendBroadcasts (sock) {
+    function sendBroadcasts (sock: Socket) {
       networkInterfaces.forEach(({ broadcast }) => {
         sock.send(registrationMsg, 0, registrationMsg.length, 38899, broadcast, (err) => {
           if (err) console.error(`Error sending registration to ${broadcast}:`, err.message)
@@ -329,7 +361,7 @@ function discoverBulbs (callback) {
   })
 }
 
-async function handleGetBulbs (callback) {
+async function handleGetBulbs (callback: BulbDiscoveryCallback): Promise<never[]> {
   try {
     const bulbs = await discoverBulbs(callback)
     console.log(`Bulbs discovered: ${bulbs.length}`)
@@ -340,20 +372,26 @@ async function handleGetBulbs (callback) {
   }
 }
 
-async function handleGetBulbState (event, ip) {
+async function handleGetBulbState (_event: IpcMainInvokeEvent | null, ip: string): Promise<WizResponse> {
   try {
     const message = '{"method":"getPilot","params":{}}'
     const response = await sendCommandToBulb(ip, message)
     return validateWizResponse(JSON.parse(response))
   } catch (error) {
-    console.error('Error getting bulb state:', error.message)
+    console.error('Error getting bulb state:', (error as Error).message)
     throw error
   }
 }
 
-async function handleSetBulbStatus (mainWindow, _event, ip, commandParams, options = {}) {
+async function handleSetBulbStatus (
+  mainWindow: BrowserWindow | null,
+  _event: IpcMainInvokeEvent | null,
+  ip: string,
+  commandParams: BulbCommandParams,
+  options: SetBulbOptions = {}
+): Promise<WizResponse> {
   console.log(commandParams)
-  const params = {}
+  const params: PilotParams = {}
 
   if (commandParams.state !== undefined) {
     params.state = commandParams.state
@@ -392,12 +430,12 @@ async function handleSetBulbStatus (mainWindow, _event, ip, commandParams, optio
     console.log('Command response:', response)
     return parsed
   } catch (error) {
-    console.error('Error sending command to bulb:', error.message)
+    console.error('Error sending command to bulb:', (error as Error).message)
     throw error
   }
 }
 
-module.exports = {
+export {
   handleSetBulbStatus,
   handleGetBulbState,
   handleGetBulbs,

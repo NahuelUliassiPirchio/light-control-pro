@@ -8,7 +8,7 @@ interface Setting {
 }
 
 interface StoredBulb {
-  mac: string
+  mac?: string
   ip?: string
   name?: string
   bulbs?: string[]
@@ -20,7 +20,7 @@ interface DataItem {
   [key: string]: unknown
 }
 
-async function handleAddOrUpdateSetting (_event: IpcMainInvokeEvent, settingId: string, data: Omit<Setting, 'id'>, filePath: PathLike) {
+async function handleAddOrUpdateSetting (_event: IpcMainInvokeEvent | null, settingId: string, data: Omit<Setting, 'id'>, filePath: PathLike) {
   const fileExists = existsSync(filePath)
   let existingData: Setting[] = []
 
@@ -42,7 +42,7 @@ async function handleAddOrUpdateSetting (_event: IpcMainInvokeEvent, settingId: 
   console.log('Setting updated in', filePath)
 }
 
-async function handleAddOrUpdateStoredBulb (_event: IpcMainInvokeEvent, data: StoredBulb, filePath: PathLike) {
+async function handleAddOrUpdateStoredBulb (_event: IpcMainInvokeEvent | null, data: StoredBulb, filePath: PathLike) {
   const fileExists = existsSync(filePath)
   let existingData: StoredBulb[] = []
 
@@ -64,7 +64,7 @@ async function handleAddOrUpdateStoredBulb (_event: IpcMainInvokeEvent, data: St
   console.log('Setting updated in', filePath)
 }
 
-async function handleRemoveStoredBulb (_event: IpcMainInvokeEvent, mac: string, filePath: PathLike) {
+async function handleRemoveStoredBulb (_event: IpcMainInvokeEvent | null, mac: string, filePath: PathLike) {
   const fileExists = existsSync(filePath)
   if (!fileExists) {
     console.log('File does not exist:', filePath)
@@ -85,7 +85,7 @@ async function handleRemoveStoredBulb (_event: IpcMainInvokeEvent, mac: string, 
   }
 }
 
-async function handleAddData (_event: IpcMainInvokeEvent, data: Omit<DataItem, 'id'>, filePath: PathLike) {
+async function handleAddData (_event: IpcMainInvokeEvent | null, data: Omit<DataItem, 'id'>, filePath: PathLike) {
   const fileExists = existsSync(filePath)
   let existingData: DataItem[] = []
 
@@ -104,7 +104,7 @@ async function handleAddData (_event: IpcMainInvokeEvent, data: Omit<DataItem, '
   console.log('Data added to', filePath)
 }
 
-async function handleEditData (_event: IpcMainInvokeEvent, id: string, updatedData: Partial<DataItem>, filePath: PathLike) {
+async function handleEditData (_event: IpcMainInvokeEvent | null, id: string, updatedData: Partial<DataItem>, filePath: PathLike) {
   const dataExists = existsSync(filePath)
   if (!dataExists) {
     console.log('File does not exist.')
@@ -127,7 +127,7 @@ async function handleEditData (_event: IpcMainInvokeEvent, id: string, updatedDa
   console.log('Data updated for ID:', id)
 }
 
-async function handleRemoveData (_event: IpcMainInvokeEvent, id: string, filePath: PathLike) {
+async function handleRemoveData (_event: IpcMainInvokeEvent | null, id: string, filePath: PathLike) {
   const dataExists = existsSync(filePath)
   if (!dataExists) {
     console.log('File does not exist.')
@@ -144,7 +144,7 @@ async function handleRemoveData (_event: IpcMainInvokeEvent, id: string, filePat
   console.log('Data removed for ID:', id)
 }
 
-async function handleGetData (_event: IpcMainInvokeEvent, path: PathLike) {
+async function handleGetData (_event: IpcMainInvokeEvent| null, path: PathLike) {
   let data: unknown
   try {
     const fileContent = await promises.readFile(path, 'utf-8')
