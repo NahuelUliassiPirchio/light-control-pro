@@ -8,20 +8,26 @@ module.exports = {
   extends: 'standard',
   overrides: [
     {
-      env: {
-        node: true
-      },
-      files: [
-        '.eslintrc.{js,cjs}'
+      env: { node: true },
+      files: ['.eslintrc.{js,cjs}'],
+      parserOptions: { sourceType: 'script' }
+    },
+    {
+      files: ['*.ts'],
+      parser: '@typescript-eslint/parser',
+      plugins: ['@typescript-eslint'],
+      extends: [
+        'standard',
+        'plugin:@typescript-eslint/recommended'
       ],
-      parserOptions: {
-        sourceType: 'script'
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'warn',
+        '@typescript-eslint/no-require-imports': 'off'
       }
     }
   ],
   parserOptions: {
     ecmaVersion: 'latest'
   },
-  rules: {
-  }
+  rules: {}
 }
