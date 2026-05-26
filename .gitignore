@@ -5,3 +5,12 @@ out/
 /dist/
 .claude
 .DS_Store
+# Compiled TS output (do not commit generated JS)
+main.js
+main.js.map
+bulbController.js
+bulbController.js.map
+dataController.js
+dataController.js.map
+app/preload.js
+app/preload.js.map

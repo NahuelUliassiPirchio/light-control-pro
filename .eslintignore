@@ -1,0 +1,8 @@
+node_modules/
+dist/
+out/
+# Compiled TS output
+main.js
+bulbController.js
+dataController.js
+app/preload.js
