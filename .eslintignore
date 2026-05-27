@@ -6,3 +6,5 @@ main.js
 bulbController.js
 dataController.js
 app/preload.js
+app/renderer.js
+app/configRenderer.js

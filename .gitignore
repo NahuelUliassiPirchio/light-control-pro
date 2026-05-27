@@ -14,3 +14,7 @@ dataController.js
 dataController.js.map
 app/preload.js
 app/preload.js.map
+app/renderer.js
+app/renderer.js.map
+app/configRenderer.js
+app/configRenderer.js.map

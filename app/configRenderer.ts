@@ -1,30 +1,30 @@
-document.getElementById('minimizeBtn').addEventListener('click', () => window.windowControls.minimize())
-document.getElementById('closeBtn').addEventListener('click', () => window.windowControls.close())
+document.getElementById('minimizeBtn')!.addEventListener('click', () => window.windowControls.minimize())
+document.getElementById('closeBtn')!.addEventListener('click', () => window.windowControls.close())
 
-document.getElementById('backButton').addEventListener('click', () => {
+document.getElementById('backButton')!.addEventListener('click', () => {
   location.href = './index.html'
 })
 
-const runOnStartupCheckbox = document.getElementById('runOnStartup')
+const runOnStartupCheckbox = document.getElementById('runOnStartup') as HTMLInputElement
 let isRecording = false
-let pressedKeys = {}
-let editingShortcutId = null
-const statesList = document.getElementById('statesList')
-const shortcutsContainer = document.getElementById('shortcutsContainer')
-const recButton = document.getElementById('recordingButton')
-const editIndicator = document.getElementById('editIndicator');
+let pressedKeys: Record<string, boolean> = {}
+let editingShortcutId: string | null = null
+const statesList = document.getElementById('statesList') as HTMLSelectElement
+const shortcutsContainer = document.getElementById('shortcutsContainer') as HTMLElement
+const recButton = document.getElementById('recordingButton') as HTMLButtonElement
+const editIndicator = document.getElementById('editIndicator') as HTMLElement
 
-(async () => {
+;(async () => {
   await loadStates()
   await loadShortcuts()
 })()
 
-async function loadStates () {
+async function loadStates (): Promise<void> {
   const settings = await window.dataProcessing.getSettings()
   if (settings) {
     settings.forEach(setting => {
       if (setting.id === 'startup') {
-        runOnStartupCheckbox.checked = setting.runOnStartup
+        runOnStartupCheckbox.checked = setting.runOnStartup ?? false
       }
     })
   } else {
@@ -34,17 +34,17 @@ async function loadStates () {
   const states = await window.dataProcessing.getStatus()
   states.forEach(state => {
     const stateOption = document.createElement('option')
-    stateOption.innerText = state.name
-    stateOption.value = state.id
+    stateOption.innerText = state.name ?? ''
+    stateOption.value = state.id ?? ''
     statesList.appendChild(stateOption)
   })
 }
 
-runOnStartupCheckbox.addEventListener('change', async (e) => {
+runOnStartupCheckbox.addEventListener('change', async () => {
   await window.dataProcessing.addOrEditSetting('startup', { runOnStartup: runOnStartupCheckbox.checked })
 })
 
-async function loadShortcuts () {
+async function loadShortcuts (): Promise<void> {
   const shortcuts = await window.dataProcessing.getShortcuts()
   shortcutsContainer.innerHTML = ''
 
@@ -92,8 +92,8 @@ async function loadShortcuts () {
   }
 }
 
-function getStateNameById (statusId) {
-  for (const option of statesList.options) {
+function getStateNameById (statusId: string): string {
+  for (const option of Array.from(statesList.options)) {
     if (option.value === statusId) {
       return option.text
     }
@@ -101,7 +101,7 @@ function getStateNameById (statusId) {
   return ''
 }
 
-function startEditingShortcut (id, statusId) {
+function startEditingShortcut (id: string, statusId: string): void {
   editingShortcutId = id
   statesList.value = statusId
   editIndicator.style.display = 'block'
@@ -109,12 +109,12 @@ function startEditingShortcut (id, statusId) {
   recButton.click()
 }
 
-async function deleteShortcut (id) {
+async function deleteShortcut (id: string): Promise<void> {
   await window.dataProcessing.removeShortcut(id)
   await loadShortcuts()
 }
 
-async function toggleRecording () {
+async function toggleRecording (): Promise<void> {
   isRecording = !isRecording
   recButton.classList.toggle('recording', isRecording)
   recButton.innerHTML = isRecording
@@ -146,7 +146,7 @@ async function toggleRecording () {
   }
 }
 
-function keyDown (event) {
+function keyDown (event: KeyboardEvent): void {
   event.preventDefault()
   const key = event.key.toLowerCase()
   const isModifierKey = key === 'shift' || key === 'control' || key === 'alt'
@@ -162,13 +162,13 @@ function keyDown (event) {
   updateKeyInfo()
 }
 
-function keyUp (event) {
+function keyUp (event: KeyboardEvent): void {
   const key = event.key.toLowerCase()
   delete pressedKeys[key]
   updateKeyInfo()
 }
 
-function updateKeyInfo () {
+function updateKeyInfo (): void {
   const keys = Object.keys(pressedKeys)
   recButton.innerHTML = keys.length > 0
     ? `<span class="rec-dot"></span> ${keys.join(' + ')}`
