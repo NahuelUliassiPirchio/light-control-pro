@@ -20,3 +20,11 @@ app/configRenderer.js
 app/configRenderer.js.map
 settingsStore.js
 settingsStore.js.map
+Bulb.js
+Bulb.js.map
+Room.js
+Room.js.map
+ILightEntity.js
+ILightEntity.js.map
+LightEntityFactory.js
+LightEntityFactory.js.map

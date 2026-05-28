@@ -8,3 +8,8 @@ dataController.js
 app/preload.js
 app/renderer.js
 app/configRenderer.js
+Bulb.js
+Room.js
+ILightEntity.js
+LightEntityFactory.js
+settingsStore.js

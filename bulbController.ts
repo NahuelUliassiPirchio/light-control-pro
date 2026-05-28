@@ -436,6 +436,8 @@ async function handleSetBulbStatus (
 }
 
 export {
+  sendCommandToBulb,
+  validateWizResponse,
   handleSetBulbStatus,
   handleGetBulbState,
   handleGetBulbs,

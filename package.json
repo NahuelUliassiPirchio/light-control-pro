@@ -14,6 +14,7 @@
     "package": "tsc && electron-forge package",
     "make": "tsc && electron-forge make",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit"
   },
   "author": "Nahuel Uliassi Pirchio <uliassipirchio@gmail.com>",

@@ -3,9 +3,12 @@ import path from 'path'
 import fs from 'fs'
 import os from 'os'
 import { exec } from 'child_process'
-import { handleSetBulbStatus, handleGetBulbs, handleGetBulbState, closeCmdSocket } from './bulbController.js'
+import { handleGetBulbs, handleGetBulbState, closeCmdSocket } from './bulbController.js'
 import { handleAddData, handleEditData, handleGetData, handleRemoveData, handleAddOrUpdateStoredBulb, handleRemoveStoredBulb } from './dataController.js'
 import { initSettings, getSettings, updateSetting, getSettingsRaw, SettingId, SettingPayloadMap } from './settingsStore.js'
+import { Bulb } from './Bulb.js'
+import { Room } from './Room.js'
+import { LightEntityFactory } from './LightEntityFactory.js'
 import type { BulbEntry, SavedStatus, Shortcut, WizResponse } from './types'
 
 function getArpTable (): Promise<Map<string, string>> {
@@ -33,6 +36,41 @@ let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuiting = false
 const iconPath = path.join(__dirname, './build/icons/icon.png')
+
+let bulbRegistry = new Map<string, Bulb>()
+let roomRegistry = new Map<string, Room>()
+const ipIndex = new Map<string, Bulb>()
+let stateChangedDebounce: ReturnType<typeof setTimeout> | null = null
+
+function rebuildIpIndex (): void {
+  ipIndex.clear()
+  for (const bulb of bulbRegistry.values()) {
+    ipIndex.set(bulb.ip, bulb)
+  }
+}
+
+function wireBulbObserver (bulb: Bulb): void {
+  bulb.on('stateChanged', () => {
+    if (stateChangedDebounce) clearTimeout(stateChangedDebounce)
+    stateChangedDebounce = setTimeout(() => mainWindow?.webContents.send('updatedBulbs', true), 50)
+  })
+}
+
+async function hydrateRegistry (bulbsFilePath: string): Promise<void> {
+  try {
+    const entries = await handleGetData(null, bulbsFilePath) as BulbEntry[]
+    if (!Array.isArray(entries)) return
+    const { bulbs, rooms } = LightEntityFactory.hydrateAll(entries)
+    bulbRegistry = bulbs
+    roomRegistry = rooms
+    rebuildIpIndex()
+    for (const bulb of bulbRegistry.values()) {
+      wireBulbObserver(bulb)
+    }
+  } catch (err) {
+    console.error('Failed to hydrate entity registry:', err)
+  }
+}
 
 const createWindow = (showOnStart = true): void => {
   mainWindow = new BrowserWindow({
@@ -114,16 +152,14 @@ async function applySavedStatus (status: SavedStatus) {
     }
 
     const results = await Promise.allSettled(
-      targets.map(bulbState =>
-        bulbState.state === false
-          ? handleSetBulbStatus(mainWindow, null, bulbState.ip!, { state: false }, { skipUiRefresh: true })
-          : handleSetBulbStatus(mainWindow, null, bulbState.ip!, bulbState, { skipUiRefresh: true })
-      )
+      targets.map(bulbState => {
+        const bulb = ipIndex.get(bulbState.ip!)
+        if (!bulb) return Promise.reject(new Error(`No registered bulb at ${bulbState.ip}`))
+        return bulbState.state === false
+          ? bulb.turnOff()
+          : bulb.applyCommand(bulbState)
+      })
     )
-
-    if (mainWindow) {
-      mainWindow.webContents.send('updatedBulbs', true)
-    }
 
     const rejectedResult = results.find(result => result.status === 'rejected')
     if (rejectedResult) {
@@ -145,13 +181,11 @@ async function applySavedStatus (status: SavedStatus) {
     array.findIndex(item => item.ip === target.ip) === index
   )
 
-  const results = await Promise.allSettled(uniqueTargets.map(target =>
-    handleSetBulbStatus(mainWindow, null, target.ip!, status, { skipUiRefresh: true })
-  ))
-
-  if (mainWindow) {
-    mainWindow.webContents.send('updatedBulbs', true)
-  }
+  const results = await Promise.allSettled(uniqueTargets.map(target => {
+    const bulb = ipIndex.get(target.ip!)
+    if (!bulb) return Promise.reject(new Error(`No registered bulb at ${target.ip}`))
+    return bulb.applyCommand(status)
+  }))
 
   const rejectedResult = results.find(result => result.status === 'rejected')
   if (rejectedResult) {
@@ -296,13 +330,13 @@ async function buildAndShowMenu (): Promise<void> {
       label: 'All lights ON',
       ...(circleOnIcon && { icon: circleOnIcon }),
       enabled: allIPs.length > 0,
-      click: () => Promise.allSettled(allIPs.map(ip => handleSetBulbStatus(mainWindow, null, ip, { state: true }, { skipUiRefresh: true }))).catch(console.error)
+      click: () => Promise.allSettled(allIPs.map(ip => ipIndex.get(ip)?.turnOn() ?? Promise.resolve())).catch(console.error)
     },
     {
       label: 'All lights OFF',
       ...(circleOffIcon && { icon: circleOffIcon }),
       enabled: allIPs.length > 0,
-      click: () => Promise.allSettled(allIPs.map(ip => handleSetBulbStatus(mainWindow, null, ip, { state: false }, { skipUiRefresh: true }))).catch(console.error)
+      click: () => Promise.allSettled(allIPs.map(ip => ipIndex.get(ip)?.turnOff() ?? Promise.resolve())).catch(console.error)
     },
     { type: 'separator' }
   ]
@@ -314,7 +348,7 @@ async function buildAndShowMenu (): Promise<void> {
       [25, 50, 75, 100].map(level => ({
         label: `${level}%`,
         click: () => Promise.allSettled(
-          ips.map(ip => handleSetBulbStatus(mainWindow, null, ip, { dimming: level }, { skipUiRefresh: true }))
+          ips.map(ip => ipIndex.get(ip)?.applyCommand({ dimming: level }) ?? Promise.resolve())
         ).catch(console.error)
       }))
 
@@ -327,8 +361,8 @@ async function buildAndShowMenu (): Promise<void> {
           ...(homeIcon && { icon: homeIcon }),
           submenu: ips.length > 0
             ? [
-                { label: 'Turn On', click: () => Promise.allSettled(ips.map(ip => handleSetBulbStatus(mainWindow, null, ip, { state: true }, { skipUiRefresh: true }))).catch(console.error) },
-                { label: 'Turn Off', click: () => Promise.allSettled(ips.map(ip => handleSetBulbStatus(mainWindow, null, ip, { state: false }, { skipUiRefresh: true }))).catch(console.error) },
+                { label: 'Turn On', click: () => Promise.allSettled(ips.map(ip => ipIndex.get(ip)?.turnOn() ?? Promise.resolve())).catch(console.error) },
+                { label: 'Turn Off', click: () => Promise.allSettled(ips.map(ip => ipIndex.get(ip)?.turnOff() ?? Promise.resolve())).catch(console.error) },
                 { type: 'separator' as const },
                 { label: 'Brightness', submenu: brightnessSubmenu(ips) }
               ]
@@ -345,8 +379,8 @@ async function buildAndShowMenu (): Promise<void> {
           label: bulb.name || 'Bulb',
           ...(bulbIcon && { icon: bulbIcon }),
           submenu: [
-            { label: 'Turn On', click: () => handleSetBulbStatus(mainWindow, null, bulb.ip!, { state: true }, { skipUiRefresh: true }).catch(console.error) },
-            { label: 'Turn Off', click: () => handleSetBulbStatus(mainWindow, null, bulb.ip!, { state: false }, { skipUiRefresh: true }).catch(console.error) },
+            { label: 'Turn On', click: () => (ipIndex.get(bulb.ip!)?.turnOn() ?? Promise.resolve()).catch(console.error) },
+            { label: 'Turn Off', click: () => (ipIndex.get(bulb.ip!)?.turnOff() ?? Promise.resolve()).catch(console.error) },
             { type: 'separator' as const },
             { label: 'Brightness', submenu: brightnessSubmenu([bulb.ip!]) }
           ]
@@ -400,6 +434,7 @@ app.on('ready', async () => {
   const showOnStart = getSettings().openOnStartup
 
   createWindow(showOnStart)
+  await hydrateRegistry(bulbsFilePath)
   if (process.platform === 'darwin' || process.platform === 'win32') {
     try {
       const isMac = process.platform === 'darwin'
@@ -440,8 +475,11 @@ app.on('ready', async () => {
   ipcMain.on('window-minimize', () => mainWindow?.minimize())
   ipcMain.on('window-close', () => mainWindow?.close())
 
-  ipcMain.handle('setBulb', (_event, ip: string, state: boolean) =>
-    handleSetBulbStatus(null, _event, ip, { state }, { skipUiRefresh: true }))
+  ipcMain.handle('setBulb', (_event, ip: string, state: boolean) => {
+    const bulb = ipIndex.get(ip)
+    if (!bulb) throw new Error(`No registered bulb at ${ip}`)
+    return state ? bulb.turnOn() : bulb.turnOff()
+  })
 
   let discoveryActive = false
   ipcMain.on('startDiscovery', async () => {
@@ -455,6 +493,23 @@ app.on('ready', async () => {
       const mac = bulbData.result?.mac
       if (mac && discoveredMacs.has(mac)) return
       if (mac) discoveredMacs.add(mac)
+
+      if (mac) {
+        const existing = bulbRegistry.get(mac)
+        if (existing) {
+          if (existing.ip !== bulbData.ip) {
+            ipIndex.delete(existing.ip)
+            existing.updateIp(bulbData.ip)
+            ipIndex.set(bulbData.ip, existing)
+          }
+        } else {
+          const newBulb = new Bulb(bulbData.ip, mac, 'Bulb')
+          bulbRegistry.set(mac, newBulb)
+          ipIndex.set(bulbData.ip, newBulb)
+          wireBulbObserver(newBulb)
+        }
+      }
+
       mainWindow?.webContents.send('bulbDiscovered', bulbData)
     }
 
@@ -479,6 +534,12 @@ app.on('ready', async () => {
         if (arpIp && arpIp !== bulb.ip) {
           console.log(`Bulb ${bulb.name} IP updated via ARP: ${bulb.ip} → ${arpIp}`)
           await handleAddOrUpdateStoredBulb(null, { ...bulb, ip: arpIp }, path.join(userDataFilePath, 'bulbs.json'))
+          const registryBulb = bulb.mac ? bulbRegistry.get(bulb.mac.replace(/[:-]/g, '').toLowerCase()) : undefined
+          if (registryBulb) {
+            ipIndex.delete(registryBulb.ip)
+            registryBulb.updateIp(arpIp)
+            ipIndex.set(arpIp, registryBulb)
+          }
         }
         try {
           const pilotData = await handleGetBulbState(null, ip)
@@ -492,12 +553,21 @@ app.on('ready', async () => {
     }
   })
 
-  ipcMain.handle('changeColor', (_event, ip: string, { r, g, b }: { r: number; g: number; b: number }, dimming: number) =>
-    handleSetBulbStatus(null, _event, ip, { r, g, b, dimming: Number(dimming) }, { skipUiRefresh: true }))
-  ipcMain.handle('setTemp', (_event, ip: string, temp: number, dimming: number) =>
-    handleSetBulbStatus(null, _event, ip, { temp: Number(temp), dimming: Number(dimming) }, { skipUiRefresh: true }))
-  ipcMain.handle('setScene', (_event, ip: string, sceneId: number, sceneSpeed: number, dimming: number) =>
-    handleSetBulbStatus(null, _event, ip, { sceneId: Number(sceneId), speed: Number(sceneSpeed), dimming: Number(dimming) }, { skipUiRefresh: true }))
+  ipcMain.handle('changeColor', (_event, ip: string, { r, g, b }: { r: number; g: number; b: number }, dimming: number) => {
+    const bulb = ipIndex.get(ip)
+    if (!bulb) throw new Error(`No registered bulb at ${ip}`)
+    return bulb.setColor(r, g, b, Number(dimming))
+  })
+  ipcMain.handle('setTemp', (_event, ip: string, temp: number, dimming: number) => {
+    const bulb = ipIndex.get(ip)
+    if (!bulb) throw new Error(`No registered bulb at ${ip}`)
+    return bulb.setTemperature(Number(temp), Number(dimming))
+  })
+  ipcMain.handle('setScene', (_event, ip: string, sceneId: number, sceneSpeed: number, dimming: number) => {
+    const bulb = ipIndex.get(ip)
+    if (!bulb) throw new Error(`No registered bulb at ${ip}`)
+    return bulb.setScene(Number(sceneId), Number(sceneSpeed), Number(dimming))
+  })
   ipcMain.handle('setStatus', (_event, ip: string, commandParams: SavedStatus) => applySavedStatus({
     ...commandParams,
     ip: commandParams.ip ?? ip
@@ -522,8 +592,26 @@ app.on('ready', async () => {
   })
 
   ipcMain.handle('getStoredBulbs', (event) => handleGetData(event, path.join(userDataFilePath, 'bulbs.json')))
-  ipcMain.handle('addOrEditStoredBulbs', (event, data: BulbEntry) => handleAddOrUpdateStoredBulb(event, data, path.join(userDataFilePath, 'bulbs.json')))
-  ipcMain.handle('removeStoredBulbs', (event, mac: string) => handleRemoveStoredBulb(event, mac, path.join(userDataFilePath, 'bulbs.json')))
+  ipcMain.handle('addOrEditStoredBulbs', async (event, data: BulbEntry) => {
+    const result = await handleAddOrUpdateStoredBulb(event, data, path.join(userDataFilePath, 'bulbs.json'))
+    await hydrateRegistry(bulbsFilePath)
+    return result
+  })
+  ipcMain.handle('removeStoredBulbs', async (event, mac: string) => {
+    const result = await handleRemoveStoredBulb(event, mac, path.join(userDataFilePath, 'bulbs.json'))
+    const bulb = bulbRegistry.get(mac)
+    if (bulb) {
+      ipIndex.delete(bulb.ip)
+      bulbRegistry.delete(mac)
+    }
+    if (roomRegistry.has(mac)) {
+      roomRegistry.delete(mac)
+    }
+    for (const room of roomRegistry.values()) {
+      room.setBulbs(room.getBulbs().filter(b => b.mac !== mac))
+    }
+    return result
+  })
 })
 
 app.on('window-all-closed', () => {

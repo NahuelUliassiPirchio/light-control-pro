@@ -2,11 +2,6 @@ import { existsSync, readFileSync, writeFileSync, promises, PathLike } from 'fs'
 import { IpcMainInvokeEvent } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 
-interface Setting {
-  id: string
-  [key: string]: unknown
-}
-
 interface StoredBulb {
   mac?: string
   ip?: string
@@ -18,28 +13,6 @@ interface StoredBulb {
 interface DataItem {
   id: string
   [key: string]: unknown
-}
-
-async function handleAddOrUpdateSetting (_event: IpcMainInvokeEvent | null, settingId: string, data: Omit<Setting, 'id'>, filePath: PathLike) {
-  const fileExists = existsSync(filePath)
-  let existingData: Setting[] = []
-
-  if (fileExists) {
-    const fileContent = readFileSync(filePath, 'utf-8')
-    existingData = JSON.parse(fileContent)
-  }
-
-  const settingIndex = existingData.findIndex(item => item.id === settingId)
-
-  if (settingIndex !== -1) {
-    existingData[settingIndex] = { ...existingData[settingIndex], ...data }
-  } else {
-    const newData = { ...data, id: settingId }
-    existingData.push(newData)
-  }
-
-  writeFileSync(filePath, JSON.stringify(existingData, null, 2), 'utf-8')
-  console.log('Setting updated in', filePath)
 }
 
 async function handleAddOrUpdateStoredBulb (_event: IpcMainInvokeEvent | null, data: StoredBulb, filePath: PathLike) {

@@ -17,18 +17,18 @@ type RawSetting = { id: string } & Record<string, unknown>
 
 const DEFAULTS: AppSettings = {
   runOnStartup: true,
-  openOnStartup: true,
+  openOnStartup: true
 }
 
 let _filePath = ''
 let _cache: AppSettings | null = null
 
-export function initSettings(userDataPath: string): void {
+export function initSettings (userDataPath: string): void {
   _filePath = path.join(userDataPath, 'settings.json')
   _cache = null
 }
 
-function loadCache(): AppSettings {
+function loadCache (): AppSettings {
   if (_cache) return _cache
 
   if (!existsSync(_filePath)) {
@@ -42,7 +42,7 @@ function loadCache(): AppSettings {
     const openEntry = raw.find(s => s.id === 'openOnStartup')
     _cache = {
       runOnStartup: typeof startup?.runOnStartup === 'boolean' ? startup.runOnStartup : DEFAULTS.runOnStartup,
-      openOnStartup: typeof openEntry?.openOnStartup === 'boolean' ? openEntry.openOnStartup : DEFAULTS.openOnStartup,
+      openOnStartup: typeof openEntry?.openOnStartup === 'boolean' ? openEntry.openOnStartup : DEFAULTS.openOnStartup
     }
   } catch {
     _cache = { ...DEFAULTS }
@@ -51,20 +51,20 @@ function loadCache(): AppSettings {
   return _cache
 }
 
-function persist(): void {
+function persist (): void {
   if (!_cache || !_filePath) return
   const raw: RawSetting[] = [
     { id: 'startup', runOnStartup: _cache.runOnStartup },
-    { id: 'openOnStartup', openOnStartup: _cache.openOnStartup },
+    { id: 'openOnStartup', openOnStartup: _cache.openOnStartup }
   ]
   writeFileSync(_filePath, JSON.stringify(raw, null, 2), 'utf-8')
 }
 
-export function getSettings(): AppSettings {
+export function getSettings (): AppSettings {
   return loadCache()
 }
 
-export function updateSetting<K extends SettingId>(id: K, data: SettingPayloadMap[K]): void {
+export function updateSetting<K extends SettingId> (id: K, data: SettingPayloadMap[K]): void {
   loadCache()
   if (id === 'startup') {
     _cache!.runOnStartup = (data as SettingPayloadMap['startup']).runOnStartup
@@ -75,10 +75,10 @@ export function updateSetting<K extends SettingId>(id: K, data: SettingPayloadMa
 }
 
 // Returns the legacy array format the renderer expects via IPC
-export function getSettingsRaw(): RawSetting[] {
+export function getSettingsRaw (): RawSetting[] {
   const s = loadCache()
   return [
     { id: 'startup', runOnStartup: s.runOnStartup },
-    { id: 'openOnStartup', openOnStartup: s.openOnStartup },
+    { id: 'openOnStartup', openOnStartup: s.openOnStartup }
   ]
 }
