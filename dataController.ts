@@ -165,7 +165,6 @@ export {
   handleEditData,
   handleRemoveData,
   handleGetData,
-  handleAddOrUpdateSetting,
   handleAddOrUpdateStoredBulb,
   handleRemoveStoredBulb
 }

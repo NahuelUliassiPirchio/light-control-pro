@@ -1,4 +1,4 @@
-import { RGBColor, BulbState, WizResponse, BulbCommandParams, BulbEntry, SavedStatus, Shortcut } from './types'
+import { WizResponse, BulbCommandParams, Shortcut } from './types'
 
 interface Setting {
   id: string

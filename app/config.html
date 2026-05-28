@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; img-src 'self' data:;">
     <meta http-equiv="X-Content-Security-Policy" content="default-src 'self'; script-src 'self'">
     <link rel="stylesheet" href="./styles/style.css">
     <title>Configuration</title>
@@ -37,6 +37,19 @@
             </div>
             <label class="bulb-switch">
                 <input id="runOnStartup" name="runOnStartup" type="checkbox">
+                <span class="slider round"></span>
+            </label>
+        </div>
+    </section>
+
+    <section class="config-card">
+        <div class="config-card-header">
+            <div>
+                <h2 class="config-title">Open on startup</h2>
+                <p class="comment-subtitle">Show the app window when it launches.</p>
+            </div>
+            <label class="bulb-switch">
+                <input id="openOnStartup" name="openOnStartup" type="checkbox">
                 <span class="slider round"></span>
             </label>
         </div>

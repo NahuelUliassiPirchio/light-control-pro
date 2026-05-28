@@ -4,14 +4,9 @@ import fs from 'fs'
 import os from 'os'
 import { exec } from 'child_process'
 import { handleSetBulbStatus, handleGetBulbs, handleGetBulbState, closeCmdSocket } from './bulbController.js'
-import { handleAddData, handleEditData, handleGetData, handleRemoveData, handleAddOrUpdateSetting, handleAddOrUpdateStoredBulb, handleRemoveStoredBulb } from './dataController.js'
+import { handleAddData, handleEditData, handleGetData, handleRemoveData, handleAddOrUpdateStoredBulb, handleRemoveStoredBulb } from './dataController.js'
+import { initSettings, getSettings, updateSetting, getSettingsRaw, SettingId, SettingPayloadMap } from './settingsStore.js'
 import type { BulbEntry, SavedStatus, Shortcut, WizResponse } from './types'
-
-interface AppSetting {
-  id: string
-  runOnStartup?: boolean
-  openOnStartup?: boolean
-}
 
 function getArpTable (): Promise<Map<string, string>> {
   return new Promise((resolve) => {
@@ -200,25 +195,10 @@ async function registerShortcuts (userDataFilePath: string): Promise<void> {
 }
 
 const userDataFilePath = app.getPath('userData')
-const settingsFilePath = path.join(userDataFilePath, 'settings.json')
 const bulbsFilePath = path.join(userDataFilePath, 'bulbs.json')
 const statusFilePath = path.join(userDataFilePath, 'status.json')
-handleGetData(null, settingsFilePath)
-  .then(async (settings) => {
-    const list = settings as AppSetting[] | null
-    if (list && list.length > 0) {
-      const startupSetting = list.find(setting => setting.id === 'startup')
-      if (startupSetting) {
-        startOnStartup(startupSetting.runOnStartup ?? true)
-      } else {
-        await handleAddOrUpdateSetting(null, 'startup', { runOnStartup: true }, settingsFilePath)
-        startOnStartup(true)
-      }
-    } else {
-      await handleAddOrUpdateSetting(null, 'startup', { runOnStartup: true }, settingsFilePath)
-      startOnStartup(true)
-    }
-  })
+initSettings(userDataFilePath)
+startOnStartup(getSettings().runOnStartup)
 
 registerShortcuts(userDataFilePath)
 const shortcutsFilePath = path.join(userDataFilePath, 'shortcuts.json')
@@ -417,14 +397,7 @@ async function buildAndShowMenu (): Promise<void> {
 
 Menu.setApplicationMenu(null)
 app.on('ready', async () => {
-  let showOnStart = true
-  try {
-    const settings = await handleGetData(null, settingsFilePath) as AppSetting[] | null
-    if (settings) {
-      const openSetting = settings.find(s => s.id === 'openOnStartup')
-      if (openSetting) showOnStart = openSetting.openOnStartup ?? true
-    }
-  } catch {}
+  const showOnStart = getSettings().openOnStartup
 
   createWindow(showOnStart)
   if (process.platform === 'darwin' || process.platform === 'win32') {
@@ -540,8 +513,13 @@ app.on('ready', async () => {
   ipcMain.handle('editShortcut', (event, id: string, data: Partial<Shortcut>) => handleEditData(event, id, data, path.join(userDataFilePath, 'shortcuts.json')))
   ipcMain.handle('removeShortcut', (event, id: string) => handleRemoveData(event, id, path.join(userDataFilePath, 'shortcuts.json')))
 
-  ipcMain.handle('getSettings', (event) => handleGetData(event, path.join(userDataFilePath, 'settings.json')))
-  ipcMain.handle('addOrEditSetting', (event, id: string, data: Record<string, unknown>) => handleAddOrUpdateSetting(event, id, data, path.join(userDataFilePath, 'settings.json')))
+  ipcMain.handle('getSettings', () => getSettingsRaw())
+  ipcMain.handle('addOrEditSetting', (_event, id: string, data: Record<string, unknown>) => {
+    const knownIds: SettingId[] = ['startup', 'openOnStartup']
+    if (knownIds.includes(id as SettingId)) {
+      updateSetting(id as SettingId, data as SettingPayloadMap[SettingId])
+    }
+  })
 
   ipcMain.handle('getStoredBulbs', (event) => handleGetData(event, path.join(userDataFilePath, 'bulbs.json')))
   ipcMain.handle('addOrEditStoredBulbs', (event, data: BulbEntry) => handleAddOrUpdateStoredBulb(event, data, path.join(userDataFilePath, 'bulbs.json')))
