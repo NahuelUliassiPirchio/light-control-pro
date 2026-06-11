@@ -5,26 +5,4 @@ out/
 /dist/
 .claude
 .DS_Store
-# Compiled TS output (do not commit generated JS)
-main.js
-main.js.map
-bulbController.js
-bulbController.js.map
-dataController.js
-dataController.js.map
-app/preload.js
-app/preload.js.map
-app/renderer.js
-app/renderer.js.map
-app/configRenderer.js
-app/configRenderer.js.map
-settingsStore.js
-settingsStore.js.map
-Bulb.js
-Bulb.js.map
-Room.js
-Room.js.map
-ILightEntity.js
-ILightEntity.js.map
-LightEntityFactory.js
-LightEntityFactory.js.map
+release/

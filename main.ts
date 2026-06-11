@@ -35,7 +35,7 @@ function getArpTable (): Promise<Map<string, string>> {
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuiting = false
-const iconPath = path.join(__dirname, './build/icons/icon.png')
+const iconPath = path.join(__dirname, '../build/icons/icon.png')
 
 let bulbRegistry = new Map<string, Bulb>()
 let roomRegistry = new Map<string, Room>()
@@ -86,7 +86,7 @@ const createWindow = (showOnStart = true): void => {
     maximizable: false
   })
 
-  mainWindow.loadFile(path.join(__dirname, 'app/index.html'))
+  mainWindow.loadFile(path.join(__dirname, '../app/index.html'))
   // mainWindow.webContents.openDevTools()
 
   if (showOnStart) {
@@ -439,7 +439,7 @@ app.on('ready', async () => {
     try {
       const isMac = process.platform === 'darwin'
       const trayIconPath = isMac
-        ? path.join(__dirname, './build/icons/processing.png')
+        ? path.join(__dirname, '../build/icons/processing.png')
         : iconPath
       const trayIcon = nativeImage.createFromPath(trayIconPath).resize({ width: 28, height: 28 })
       if (isMac) trayIcon.setTemplateImage(true)

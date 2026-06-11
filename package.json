@@ -2,7 +2,7 @@
   "name": "light-control-pro",
   "version": "1.2.0",
   "description": "Smart Light Controller from Your PC",
-  "main": "main.js",
+  "main": "dist/main.js",
   "scripts": {
     "start": "tsc && electron-forge start",
     "dev": "tsc && electron --enable-logging .",
@@ -23,13 +23,11 @@
     "appId": "nahueluliassipirchio.light.control.pro",
     "productName": "Light Control Pro",
     "directories": {
-      "output": "dist"
+      "output": "release"
     },
     "files": [
       "app/**/*",
-      "main.js",
-      "bulbController.js",
-      "dataController.js",
+      "dist/**/*",
       "package.json",
       "public",
       "build/icons/**/*"
