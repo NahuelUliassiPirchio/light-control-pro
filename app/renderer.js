@@ -514,6 +514,7 @@ let favStatus
 
   const favsContainer = document.getElementById('fav-status')
   favStatus = await window.dataProcessing.getStatus()
+  favStatus.sort((a, b) => (b.usageCount ?? 0) - (a.usageCount ?? 0))
   if (favStatus.length === 0) document.querySelector('.fav-status-container').remove()
   favStatus.forEach(status => {
     favsContainer.appendChild(createSavedStatusCard(status))

@@ -24,6 +24,7 @@ const {
   handleEditData,
   handleGetData,
   handleRemoveData,
+  handleIncrementUsageCount,
   handleAddOrUpdateSetting,
   handleAddOrUpdateStoredBulb,
   handleRemoveStoredBulb
@@ -120,6 +121,11 @@ function startOnStartup (value) {
 }
 
 async function applySavedStatus (status) {
+  if (status.id) {
+    handleIncrementUsageCount(null, status.id, path.join(userDataFilePath, 'status.json'))
+      .catch(err => console.error('Failed to increment usage count:', err))
+  }
+
   const isPerBulb = status.targetType === 'room' &&
     Array.isArray(status.bulbs) && status.bulbs.length > 0 &&
     status.bulbs[0].state !== undefined

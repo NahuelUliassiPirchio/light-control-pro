@@ -32,6 +32,7 @@ async function loadStates () {
   }
 
   const states = await window.dataProcessing.getStatus()
+  states.sort((a, b) => (b.usageCount ?? 0) - (a.usageCount ?? 0))
   states.forEach(state => {
     const stateOption = document.createElement('option')
     stateOption.innerText = state.name

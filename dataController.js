@@ -75,7 +75,7 @@ async function handleAddData (_event, data, filePath) {
     existingData = JSON.parse(fileContent)
   }
 
-  const newData = { ...data, id: uuidv4() }
+  const newData = { ...data, id: uuidv4(), usageCount: data.usageCount ?? 0 }
   existingData.push(newData)
 
   const updatedJsonData = JSON.stringify(existingData, null, 2)
@@ -125,6 +125,24 @@ async function handleRemoveData (_event, id, filePath) {
   console.log('Data removed for ID:', id)
 }
 
+async function handleIncrementUsageCount (_event, id, filePath) {
+  const dataExists = fs.existsSync(filePath)
+  if (!dataExists) return
+
+  const fileContent = fs.readFileSync(filePath, { encoding: 'utf-8' })
+  const existingData = JSON.parse(fileContent)
+
+  const dataIndex = existingData.findIndex(item => item.id === id)
+  if (dataIndex === -1) return
+
+  existingData[dataIndex] = {
+    ...existingData[dataIndex],
+    usageCount: (existingData[dataIndex].usageCount ?? 0) + 1
+  }
+
+  fs.writeFileSync(filePath, JSON.stringify(existingData, null, 2), { encoding: 'utf-8' })
+}
+
 async function handleGetData (_event, path) {
   let data = []
   try {
@@ -146,6 +164,7 @@ module.exports = {
   handleEditData,
   handleRemoveData,
   handleGetData,
+  handleIncrementUsageCount,
   handleAddOrUpdateSetting,
   handleAddOrUpdateStoredBulb,
   handleRemoveStoredBulb
