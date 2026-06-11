@@ -93,7 +93,11 @@ const createWindow = (showOnStart = true): void => {
     mainWindow.show()
   } else {
     mainWindow.hide()
+    app.dock?.hide()
   }
+
+  mainWindow.on('show', () => app.dock?.show())
+  mainWindow.on('hide', () => app.dock?.hide())
 
   mainWindow.on('close', (event) => {
     if (!isQuiting) {
